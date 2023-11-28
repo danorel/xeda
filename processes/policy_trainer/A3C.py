@@ -8,14 +8,14 @@ from copy import Error
 from threading import Lock, Thread
 from tqdm import tqdm
 
-from constants import WANDB_VERBOSE
-from .greedy_summarizer import GreedySummarizer
-from .pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
-from .critic import Critic
-from .intrinsic_curiosity_model import IntrinsicCuriosityForwardModel
-from .operation_actor import OperationActor
-from .pipeline_environment import PipelineEnvironment
-from .set_actor import SetActor
+from constants import POLICY_WANDB_VERBOSE
+from ..utils.greedy_summarizer import GreedySummarizer
+from ..utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
+from ..utils.critic import Critic
+from ..utils.intrinsic_curiosity_model import IntrinsicCuriosityForwardModel
+from ..utils.operation_actor import OperationActor
+from ..utils.pipeline_environment import PipelineEnvironment
+from ..utils.set_actor import SetActor
 
 tf.keras.backend.set_floatx("float64")
 
@@ -27,12 +27,12 @@ class Policy:
     """
 
     def __init__(
-        self, 
-        env_name: str, 
+        self,
+        env_name: str,
         agent_name: str,
-        agent_config: dict, 
-        target_set_id: str, 
-        mode: str 
+        agent_config: dict,
+        target_set_id: str,
+        mode: str,
     ):
         self.env_name = env_name
         self.agent_name = agent_name
@@ -58,11 +58,7 @@ class Policy:
         )
 
         self.steps = self.config["lstm_steps"]
-
-        if self.mode == "scattered":
-            self.episode_steps = 25
-        elif self.mode == "concentrated":
-            self.episode_steps = 25
+        self.episode_steps = self.config["episode_steps"]
 
         self.best_evaluation_so_far = {
             "mean_reward": 0,
@@ -157,11 +153,7 @@ class Policy:
         for worker in workers:
             worker.join()
 
-        return (
-            self.global_operation_actor,
-            self.global_set_actor,
-            self.global_critic
-        )
+        return (self.global_operation_actor, self.global_set_actor, self.global_critic)
 
 
 class PolicyWorker(Thread):
@@ -560,30 +552,31 @@ class PolicyWorker(Thread):
                                             set_op_pair
                                         ] = episode_set_op_counters[set_op_pair]
 
-                                save_interval = 250
-                                if (
-                                    done
-                                    and cur_episode != 0
-                                    and cur_episode % save_interval == 0
-                                ):
-                                    ep = cur_episode
+                                if self.config.get("save_interval") is not None:
+                                    if (
+                                        done
+                                        and cur_episode != 0
+                                        and cur_episode % self.config["save_interval"] == 0
+                                    ):
+                                        ep = cur_episode
 
-                                    self.operation_actor.save_model(step=ep)
-                                    self.set_actor.save_model(step=ep)
-                                    self.critic.save_model(step=ep)
-                                    with open(
-                                        f"policies/{self.agent_name}/{ep}/set_op_counters.json",
-                                        "w",
-                                    ) as f:
-                                        json.dump(
-                                            self.global_set_op_counters, f, indent=1
-                                        )
-                                if (
-                                    done
-                                    and cur_episode != 0
-                                    and cur_episode % self.config["eval_interval"] == 0
-                                ):
-                                    self.evaluate()
+                                        self.operation_actor.save_model(step=ep)
+                                        self.set_actor.save_model(step=ep)
+                                        self.critic.save_model(step=ep)
+                                        with open(
+                                            f"policies/{self.agent_name}/{ep}/set_op_counters.json",
+                                            "w",
+                                        ) as f:
+                                            json.dump(
+                                                self.global_set_op_counters, f, indent=1
+                                            )
+                                if self.config.get("eval_interval") is not None:
+                                    if (
+                                        done
+                                        and cur_episode != 0
+                                        and cur_episode % self.config["eval_interval"] == 0
+                                    ):
+                                        self.evaluate()
 
                             except Error as error:
                                 print(error)
@@ -611,7 +604,7 @@ class PolicyWorker(Thread):
                             cur_episode, self.agentId, episode_reward
                         )
                     )
-                    if WANDB_VERBOSE:
+                    if POLICY_WANDB_VERBOSE:
                         log = {
                             "reward": episode_reward,
                             "sets_viewed": len(self.env.sets_viewed),

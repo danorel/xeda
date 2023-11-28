@@ -1,36 +1,36 @@
-import multiprocessing
 import wandb
 
 from constants import (
-    EPISODES,
-    WANDB_VERBOSE
+    POLICY_EPISODES, 
+    POLICY_EPISODE_STEPS_CONCENTRATED,
+    POLICY_EPISODE_STEPS_SCATTERED,
+    POLICY_WANDB_PROJECT, 
+    POLICY_WANDB_VERBOSE
 )
+from constants.processes.policy_trainer import POLICY_BASE_CONFIG
 from .A3C import Policy
 
+
 def policy_trainer(target_set_id: str, mode: str):
-    policy_config = {
-        "dataset": "galaxies",
-        "workers": multiprocessing.cpu_count(),
-        "target_set": target_set_id,
-        "mode": mode,
-        "gamma": 0.99,
-        "update_interval": 20,
-        "actor_lr": 0.00003,
-        "critic_lr": 0.00003,
-        "icm_lr": 0.05,
-        "lstm_steps": 3,
-        "eval_interval": 10,
-        "curiosity_ratio": 0.0,
-        "counter_curiosity_ratio": 0.0,
-        "operators": ["by_facet", "by_superset", "by_neighbors", "by_distribution"],
-        "utility_mode": None,
-        "utility_weights": [0.333, 0.333, 0.334],
-    }
     policy_name = f"{target_set_id}_{mode}"
 
-    if WANDB_VERBOSE:
+    if mode == "scattered":
+        policy_episode_steps = POLICY_EPISODE_STEPS_SCATTERED
+    elif mode == "concentrated":
+        policy_episode_steps = POLICY_EPISODE_STEPS_CONCENTRATED
+    else:
+        raise NotImplementedError("Please, provide training mode: 'scattered' or 'concentrated'")
+
+    policy_config = {
+        **POLICY_BASE_CONFIG,
+        "target_set": target_set_id,
+        "mode": mode,
+        "episode_steps": policy_episode_steps
+    }
+
+    if POLICY_WANDB_VERBOSE:
         wandb.init(
-            project="xeda",
+            project=POLICY_WANDB_PROJECT,
             id=wandb.util.generate_id(),
             name=policy_name,
             config=policy_config,
@@ -43,6 +43,6 @@ def policy_trainer(target_set_id: str, mode: str):
         target_set_id,
         mode,
     )
-    policy_models = policy.train(EPISODES)
+    policy_models = policy.train(POLICY_EPISODES)
 
     return policy_config, policy_models

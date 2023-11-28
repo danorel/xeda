@@ -1,37 +1,24 @@
-import tensorflow as tf
 import numpy as np
-import json
 
+from .action_manager import ActionManager
 from .pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from .state_encoder import StateEncoder
-from .action_manager import ActionManager
 
 
 class ModelManager:
-    def __init__(self, pipeline: PipelineWithPrecalculatedSets, model_path: str):
+    def __init__(self, pipeline: PipelineWithPrecalculatedSets, models):
         self.pipeline = pipeline
         self.action_manager = ActionManager(
             self.pipeline,
             operators=["by_facet", "by_superset", "by_neighbors", "by_distribution"],
         )
-        self.models = {}
         self.lstm_steps = 3
         self.counter_curiosity_factor = 100 / 250
-
-        with open(f"{model_path}/set_op_counters.json") as f:
-            set_op_counters = json.load(f)
-            self.model = {
-                "set": tf.keras.models.load_model(f"{model_path}/set_actor"),
-                "operation": tf.keras.models.load_model(
-                    f"{model_path}/operation_actor"
-                ),
-                "set_op_counters": set_op_counters,
-            }
+        self.models = models
 
     def get_prediction(
         self,
         datasets,
-        variant,
         target_items,
         found_items_with_ratio,
         previous_set_states=None,
@@ -45,8 +32,8 @@ class ModelManager:
 
         set_state, reward = state_encoder.encode_datasets(datasets=datasets)
 
-        set_actor = self.model["set"]
-        operation_actor = self.model["operation"]
+        set_actor = self.models["set"]
+        operation_actor = self.models["operation"]
 
         if previous_set_states == None:
             previous_set_states = [
@@ -134,7 +121,7 @@ class ModelManager:
             set_op_pair = f"{dataset.set_id}:{str([operator])}"
         else:
             set_op_pair = f"{dataset.set_id}:{str([operator, attribute])}"
-        set_op_counters = self.model["set_op_counters"]
+        set_op_counters = self.models["set_op_counters"]
         if set_op_pair in set_op_counters:
             set_op_counters[set_op_pair] += 1
         else:

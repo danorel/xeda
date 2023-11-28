@@ -1,6 +1,7 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, LSTM
 import os
+
+from tensorflow.keras.layers import Input, Dense, LSTM
 
 
 class Critic:

@@ -62,7 +62,7 @@ class IntrinsicCuriosityForwardModel:
     def save_model(self, name=None, step=None):
         if name == None:
             name = self.agent_name
-        directory = "saved_models/" + name + "/icm/"
+        directory = "policies/" + name + "/icm/"
         if step == None:
             directory += "final"
         else:

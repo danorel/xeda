@@ -15,9 +15,7 @@ from .tools.operator_logging import loggable_operator
 class PipelineSql:
     databases = {"sdss": "skyserver_dr16_2020_11_30", "unics_cordis": "siris"}
 
-    def __init__(
-        self, database_name: str, discrete_categories_count=20
-    ):
+    def __init__(self, database_name: str, discrete_categories_count=20):
         self.database_name = database_name
         self.discrete_categories_count = discrete_categories_count
         self.data_folder = DATA_FOLDER

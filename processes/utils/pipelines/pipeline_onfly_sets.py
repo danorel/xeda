@@ -11,9 +11,7 @@ from .predicate_item import PredicateItem
 
 class PipelineWithOnFlySets(Pipeline):
     def __init__(self, database_name, initial_collection_names):
-        Pipeline.__init__(
-            self, database_name, initial_collection_names
-        )
+        Pipeline.__init__(self, database_name, initial_collection_names)
 
     def by_superset(self, dataset: Dataset, set_ids_to_ignore=[]):
         if len(dataset.predicate.components) == 0:

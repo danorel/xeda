@@ -8,6 +8,7 @@ from constants import (
     SAMPLING_RATE,
 )
 
+
 def make_item_set_sampler(sampling_rate: float):
     def sample(item_set: set):
         k = round(len(item_set) * sampling_rate)

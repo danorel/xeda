@@ -1,10 +1,10 @@
 import random
 
 from constants import (
-    ATTEMPTS,
-    MAX_ITEM_SET_NODES,
-    MIN_ITEM_SET_NODES,
-    SAMPLE_AMOUNT,
+    SAMPLING_AMOUNT,
+    SAMPLING_ATTEMPTS,
+    SAMPLING_MAX_ITEM_SET_NODES,
+    SAMPLING_MIN_ITEM_SET_NODES,
     SAMPLING_RATE,
 )
 
@@ -29,13 +29,13 @@ def make_item_set_validator(min_item_set_nodes: int, max_item_set_nodes: int):
 def target_set_node_sampler(members_df):
     sample, satisfies_conditions = (
         make_item_set_sampler(SAMPLING_RATE),
-        make_item_set_validator(MIN_ITEM_SET_NODES, MAX_ITEM_SET_NODES),
+        make_item_set_validator(SAMPLING_MIN_ITEM_SET_NODES, SAMPLING_MAX_ITEM_SET_NODES),
     )
 
     target_sets = []
-    for _ in range(SAMPLE_AMOUNT):
+    for _ in range(SAMPLING_AMOUNT):
         item_set = set()
-        for _ in range(ATTEMPTS):
+        for _ in range(SAMPLING_ATTEMPTS):
             input_set_id = random.randint(0, members_df.shape[0] - 1)
             item_set = set(
                 [int(id) for id in members_df.iloc[input_set_id, 2][1:-1].split(", ")]

@@ -11,7 +11,7 @@ from constants.processes.policy_trainer import POLICY_BASE_CONFIG
 from .A3C import Policy
 
 
-def policy_trainer(target_set_id: str, mode: str):
+def policy_trainer(target_set_id: str, target_set_items: list[int], mode: str):
     policy_name = f"{target_set_id}_{mode}"
 
     if mode == "scattered":
@@ -41,6 +41,7 @@ def policy_trainer(target_set_id: str, mode: str):
         policy_name,
         policy_config,
         target_set_id,
+        target_set_items,
         mode,
     )
     policy_models = policy.train(POLICY_EPISODES)

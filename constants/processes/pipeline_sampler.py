@@ -1,2 +1,4 @@
-MIN_PIPELINE_SIZE = 4
-MAX_PIPELINE_SIZE = 10
+import os
+
+PIPELINE_MIN_SIZE = int(os.getenv("PIPELINE_MIN_SIZE", "4"))
+PIPELINE_MAX_SIZE = int(os.getenv("PIPELINE_MAX_SIZE", "10"))

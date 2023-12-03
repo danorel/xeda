@@ -2,122 +2,40 @@ import datetime as dt
 import pandas as pd
 import uuid
 
-from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, asset
+from dagster import (
+    AssetExecutionContext, 
+    HourlyPartitionsDefinition,
+    MetadataValue, 
+    Output,
+    asset
+)
 
-from constants import BUCKET_NAME, GROUPS_PATH, TARGET_SET_PATH
-from processes import policy_trainer, target_set_sampler, sample_pipeline_from_models
+from constants import (
+    AWS_S3_BUCKET_NAME, 
+    GROUPS_CSV_PATH
+)
+from processes import annotate_pipeline, policy_trainer, target_set_sampler, sample_pipeline_from_models
 from processes.utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from utils.s3 import (
     pull_info_json, 
-    pull_keras_model, 
+    pull_keras_model,
+    pull_pipeline_json, 
     push_info_json, 
     push_keras_model, 
     push_pipeline_json
 )
+from .resources import S3FSResource
 
+start_date = dt.datetime.now().date()
+hourly_partitions = HourlyPartitionsDefinition(start_date=f"{start_date:%Y-%m-%d-%H:%M}")
 
-@asset
-def groups():
-    groups_df = pd.read_csv(GROUPS_PATH)
-
-    return MaterializeResult(
-        metadata={
-            "num_records": len(groups_df),
-            "preview": MetadataValue.md(groups_df.head(n=3).to_markdown()),
-        }
-    )
-
-
-@asset(deps=[groups], required_resource_keys={"s3"})
-def target_sets(context: AssetExecutionContext):
-    groups_df = pd.read_csv(GROUPS_PATH)
-
-    target_sets_by_sampling_method = target_set_sampler(groups_df)
-    target_sets_df = pd.DataFrame(columns=["id", "item_set", "sampling_method"])
-    for sampling_method, sampled_target_sets in target_sets_by_sampling_method.items():
-        target_set_records = [
-            {
-                "id": str(uuid.uuid4()),
-                "item_set": list(item_set),
-                "sampling_method": sampling_method,
-            }
-            for item_set in sampled_target_sets
-        ]
-        sampled_target_sets_df = pd.DataFrame.from_records(target_set_records)
-        target_sets_df = pd.concat([target_sets_df, sampled_target_sets_df])
-
-    # Save target_sets.csv locally
-
-    target_sets_df.to_csv(TARGET_SET_PATH, index=False)
-
-    # Load target_sets.csv to S3 bucket
-
-    target_sets_version = f"target_set_{dt.datetime.now().isoformat()}.csv"
-    target_sets_key = f"target_sets/{target_sets_version}"
-
-    context.resources.s3.upload_file(TARGET_SET_PATH, BUCKET_NAME, target_sets_key)
-
-    return MaterializeResult(
-        metadata={
-            "num_records": len(target_sets_df),
-            "preview": MetadataValue.md(target_sets_df.head(n=3).to_markdown()),
-        }
-    )
-
-
-@asset(deps=[target_sets], required_resource_keys={"s3"})
-def policies(context: AssetExecutionContext):
-    target_sets_df = pd.read_csv(TARGET_SET_PATH)
-
-    for _, target_set in target_sets_df.iterrows():
-        target_set_id = target_set["id"]
-
-        for mode in ["scattered", "concentrated"]:
-            context.log.info(
-                f"Training policy with TargetSet[id={target_set_id}, mode={mode}]"
-            )
-
-            policy_config, (operation_actor, set_actor, critic) = policy_trainer(
-                target_set_id, mode
-            )
-            policy_name = f"policy_{target_set_id}_{mode}"
-
-            push_info_json(
-                BUCKET_NAME, 
-                policy_name,
-                policy_config
-            )
-            push_keras_model(
-                BUCKET_NAME,
-                policy_name,
-                operation_actor.model,
-                model_name="operation_actor",
-            )
-            push_keras_model(
-                BUCKET_NAME,
-                policy_name,
-                set_actor.model,
-                model_name="set_actor",
-            )
-            push_keras_model(
-                BUCKET_NAME,
-                policy_name,
-                critic.model,
-                model_name="critic",
-            )
-
-            context.log.info(
-                f"Trained policy with TargetSet[id={target_set_id}, mode={mode}]"
-            )
-
-
-@asset(deps=[policies], required_resource_keys={"s3"})
-def pipelines(context: AssetExecutionContext):
-    target_sets_df = pd.read_csv(TARGET_SET_PATH)
-
-    context.log.info(f"Reading precalculated dataset of pipelines")
-    database_pipeline_cache = {}
-    database_pipeline_cache["galaxies"] = PipelineWithPrecalculatedSets(
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def datasets(context: AssetExecutionContext):
+    cache = {}
+    cache["galaxies"] = PipelineWithPrecalculatedSets(
         database_name="sdss",
         initial_collection_names=["galaxies"],
         discrete_categories_count=10,
@@ -133,47 +51,277 @@ def pipelines(context: AssetExecutionContext):
         ],
         id_column="galaxies.objID",
     )
-    context.log.info(f"Read precalculated dataset of pipelines")
+    yield Output(cache)
 
-    for _, target_set in target_sets_df.iterrows():
-        target_set_id = target_set["id"]
 
-        for mode in ["scattered", "concentrated"]:
-            context.log.info(
-                f"Generating pipeline using policy trained on with TargetSet[id={target_set_id}, mode={mode}]"
-            )
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def groups(context: AssetExecutionContext):
+    df = pd.read_csv(GROUPS_CSV_PATH)
 
-            policy_name = f"policy_{target_set_id}_{mode}"
+    context.add_output_metadata(
+        metadata={
+            "num_records": len(df),
+            "preview": MetadataValue.md(df.head(n=3).to_markdown()),
+        }
+    )
 
-            models = {
-                "set": pull_keras_model(
-                    BUCKET_NAME,
-                    policy_name,
-                    model_name="set_actor",
-                ),
-                "operation": pull_keras_model(
-                    BUCKET_NAME,
-                    policy_name,
-                    model_name="operation_actor",
-                ),
-                "set_op_counters": None,
+    yield Output(df)
+
+
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def target_sets(context: AssetExecutionContext, groups: pd.DataFrame):
+    df = pd.DataFrame(columns=["id", "item_set", "sampling_method"])
+
+    for sampling_method, sampled_item_sets in target_set_sampler(groups).items():
+        sampled_df = pd.DataFrame.from_records([
+            {
+                "id": str(uuid.uuid4()),
+                "items": list(sampled_item_set),
+                "sampling_method": sampling_method,
             }
-            info = pull_info_json(BUCKET_NAME, policy_name)
+            for sampled_item_set in sampled_item_sets
+        ])
+        df = pd.concat([df, sampled_df])
 
-            pipeline_name = f"pipeline_{target_set_id}_{mode}"
-            pipeline = sample_pipeline_from_models(
-                context.log, 
-                models, 
-                database_pipeline_cache, 
-                info
-            )
+    context.add_output_metadata(
+        metadata={
+            "num_records": len(df),
+            "preview": MetadataValue.md(df.head(n=3).to_markdown()),
+        }
+    )
 
-            push_pipeline_json(
-                BUCKET_NAME,
-                pipeline_name,
-                pipeline
-            )
+    yield Output(df)
 
+
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def training_configs(context: AssetExecutionContext, target_sets: pd.DataFrame):
+    df = pd.DataFrame(columns=[
+        "target_set_id", 
+        "target_set_items", 
+        "target_set_sampling_method",
+        "policy_mode"
+    ])
+
+    for _, target_set in target_sets.iterrows():
+        for policy_mode in ["scattered", "concentrated"]:
+            df = df.append({
+                'target_set_id': target_set['id'],
+                "target_set_items": target_set['items'],
+                "target_set_sampling_method": target_set['sampling_method'],
+                'policy_mode': policy_mode,
+            }, ignore_index = True)
             context.log.info(
-                f"Generated pipeline using policy trained on TargetSet[id={target_set_id}, mode={mode}]"
+                f"Populated TargetSet[id={target_set['id']}] with mode={policy_mode}"
             )
+
+    context.add_output_metadata(
+        metadata={
+            "num_records": len(df),
+            "preview": MetadataValue.md(df.head(n=3).to_markdown()),
+        }
+    )
+
+    yield Output(df)
+
+
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def policies(context: AssetExecutionContext, s3fs: S3FSResource, training_configs: pd.DataFrame):
+    df = pd.DataFrame(columns=[
+        "target_set_id", 
+        "policy_name",
+        "policy_mode"
+    ])
+    for _, training_config in training_configs.iterrows():
+        policy_config, (operation_actor, set_actor, critic) = policy_trainer(
+            training_config['target_set_id'],
+            training_config['target_set_items'],
+            training_config['policy_mode']
+        )
+        policy_name = f"policy_{training_config['target_set_id']}_{training_config['policy_mode']}"
+
+        push_info_json(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME, 
+            policy_name=policy_name,
+            policy_config=policy_config
+        )
+
+        push_keras_model(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME,
+            policy_name=policy_name,
+            model=operation_actor.model,
+            model_name="operation_actor",
+        )
+        push_keras_model(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME,
+            policy_name=policy_name,
+            model=set_actor.model,
+            model_name="set_actor",
+        )
+        push_keras_model(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME,
+            policy_name=policy_name,
+            model=critic.model,
+            model_name="critic",
+        )
+
+        df = df.append({
+            'target_set_id': training_config['target_set_id'],
+            'policy_mode': training_config['policy_mode'],
+            'policy_name': policy_name,
+        }, ignore_index = True)
+
+        context.log.info(
+            f"Trained policy with TargetSet[id={training_config['target_set_id']}] and mode={training_config['policy_mode']}]"
+        )
+
+    context.add_output_metadata(
+        metadata={
+            "num_records": len(df),
+            "preview": MetadataValue.md(df.head(n=3).to_markdown()),
+        }
+    )
+
+    yield Output(df)
+
+
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def pipelines(context: AssetExecutionContext, s3fs: S3FSResource, policies: pd.DataFrame, datasets: dict):
+    df = pd.DataFrame(columns=[
+        "pipeline_name",
+        "policy_name",
+        "policy_mode",
+        "target_set_id"
+    ])
+
+    for _, policy in policies.iterrows():
+        models = {
+            "set": pull_keras_model(
+                s3fs=s3fs,
+                bucket_name=AWS_S3_BUCKET_NAME,
+                policy_name=policy['policy_name'],
+                model_name="set_actor",
+            ),
+            "operation": pull_keras_model(
+                s3fs=s3fs,
+                bucket_name=AWS_S3_BUCKET_NAME,
+                policy_name=policy['policy_name'],
+                model_name="operation_actor",
+            ),
+            "set_op_counters": None,
+        }
+        info = pull_info_json(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME, 
+            policy_name=policy['policy_name']
+        )
+
+        raw_pipeline = sample_pipeline_from_models(
+            models, 
+            datasets, 
+            info,
+            logger=context.log, 
+        )
+        raw_pipeline_name = f"raw-pipeline_{policy['target_set_id']}_{policy['policy_mode']}"
+
+        push_pipeline_json(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME,
+            pipeline_folder="raw_pipelines",
+            pipeline_name=raw_pipeline_name,
+            pipeline=raw_pipeline
+        )
+
+        df = df.append({
+            'pipeline_name': raw_pipeline_name,
+            'policy_name': policy['policy_name'],
+            'policy_mode': policy['policy_mode'],
+            'target_set_id': policy['target_set_id']
+        }, ignore_index = True)
+
+        context.log.info(
+            f"Generated pipeline using policy trained on TargetSet[id={policy['target_set_id']}] and mode={policy['policy_mode']}"
+        )
+
+    context.add_output_metadata(
+        metadata={
+            "num_records": len(df),
+            "preview": MetadataValue.md(df.head(n=3).to_markdown()),
+        }
+    )
+
+    yield Output(df)
+
+
+@asset(
+    io_manager_key="s3_io_manager",
+    partitions_def=hourly_partitions
+)
+def annotated_pipelines(context: AssetExecutionContext, s3fs: S3FSResource, groups: pd.DataFrame, pipelines: pd.DataFrame):
+    df = pd.DataFrame(columns=[
+        "pipeline_name",
+        "policy_name",
+        "policy_mode",
+        "target_set_id"
+    ])
+
+    for i, pipeline in pipelines.iterrows():
+        context.log.info(f"{pipeline['pipeline_name']} annotation has been started")
+
+        raw_pipeline = pull_pipeline_json(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME,
+            pipeline_folder="raw_pipelines",
+            pipeline_name=pipeline['pipeline_name'],
+        )
+
+        annotated_pipeline = annotate_pipeline(
+            groups, 
+            raw_pipeline, 
+            logger=context.log
+        )
+        annotated_pipeline_name = f"annotated-pipeline_{pipeline['target_set_id']}_{pipeline['policy_mode']}"
+
+        push_pipeline_json(
+            s3fs=s3fs,
+            bucket_name=AWS_S3_BUCKET_NAME,
+            pipeline_folder="annotated_pipelines",
+            pipeline_name=annotated_pipeline_name,
+            pipeline=annotated_pipeline
+        )
+
+        df = df.append({
+            'pipeline_name': annotated_pipeline_name,
+            'policy_name': pipeline['policy_name'],
+            'policy_mode': pipeline['policy_mode'],
+            'target_set_id': pipeline['target_set_id']
+        }, ignore_index = True)
+
+        context.log.info(f"{pipeline['pipeline_name']} annotation has been finished")
+
+    context.add_output_metadata(
+        metadata={
+            "num_records": len(df),
+            "preview": MetadataValue.md(df.head(n=3).to_markdown()),
+        }
+    )
+
+    yield Output(df)

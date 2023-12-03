@@ -32,12 +32,14 @@ class Policy:
         agent_name: str,
         agent_config: dict,
         target_set_id: str,
+        target_set_items: list[int],
         mode: str,
     ):
         self.env_name = env_name
         self.agent_name = agent_name
         self.mode = mode
         self.target_set_id = target_set_id
+        self.target_set_items = target_set_items
         self.config = agent_config
 
         self.pipeline = PipelineWithPrecalculatedSets(
@@ -70,6 +72,7 @@ class Policy:
             self.pipeline,
             database_name="sdss",
             target_set_id=self.target_set_id,
+            target_items=self.target_set_items,
             mode=self.mode,
             episode_steps=self.episode_steps,
             operators=self.config["operators"],

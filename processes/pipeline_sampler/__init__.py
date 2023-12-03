@@ -1,8 +1,8 @@
 from random import randrange
 
 from constants import (
-    MIN_PIPELINE_SIZE,
-    MAX_PIPELINE_SIZE
+    PIPELINE_MIN_SIZE,
+    PIPELINE_MAX_SIZE
 )
 from data_types.pipeline import RequestData
 from ..utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
@@ -101,11 +101,11 @@ def next_pipeline_iter(
     return next_node, next_request
 
 
-def sample_pipeline_from_models(logger, models, database_pipeline_cache, info):
+def sample_pipeline_from_models(models, database_pipeline_cache, info, logger):
     model_manager = ModelManager(database_pipeline_cache["galaxies"], models)
     request_data = _get_initial_request_data(database_pipeline_cache, info)
     pipeline = []
-    pipeline_size = randrange(MIN_PIPELINE_SIZE, MAX_PIPELINE_SIZE)
+    pipeline_size = randrange(PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE)
     logger.info(f"Generating Pipeline of size {pipeline_size}")
     for i in range(pipeline_size):
         try:

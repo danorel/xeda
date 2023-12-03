@@ -175,3 +175,10 @@ scripts/.build
 
 # dbt .user files
 .user.yml
+
+# Dagster
+tmp*
+tmp
+
+# Wandb
+wandb

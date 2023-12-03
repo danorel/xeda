@@ -1,7 +1,11 @@
 import json
 import random
 
-from constants import MIN_ITEM_SET_NODES, MAX_ITEM_SET_NODES, TARGET_SET_KNOWN_PATH
+from constants import (
+    SAMPLING_MIN_ITEM_SET_NODES, 
+    SAMPLING_MAX_ITEM_SET_NODES, 
+    TARGET_SET_KNOWN_PATH
+)
 
 
 class TargetSetGenerator:
@@ -26,7 +30,7 @@ class TargetSetGenerator:
             with target_file.open("r") as f:
                 target_set = json.load(f)
             if (
-                len(target_set) >= MIN_ITEM_SET_NODES
-                and len(target_set) <= MAX_ITEM_SET_NODES
+                len(target_set) >= SAMPLING_MIN_ITEM_SET_NODES
+                and len(target_set) <= SAMPLING_MAX_ITEM_SET_NODES
             ):
                 return set(target_set)

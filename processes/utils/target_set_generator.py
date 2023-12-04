@@ -2,9 +2,9 @@ import json
 import random
 
 from constants import (
-    SAMPLING_MIN_ITEM_SET_NODES, 
-    SAMPLING_MAX_ITEM_SET_NODES, 
-    TARGET_SET_KNOWN_PATH
+    SAMPLING_MIN_ITEM_SET_NODES,
+    SAMPLING_MAX_ITEM_SET_NODES,
+    TARGET_SET_KNOWN_PATH,
 )
 
 

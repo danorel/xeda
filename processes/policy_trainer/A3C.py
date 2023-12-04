@@ -559,7 +559,8 @@ class PolicyWorker(Thread):
                                     if (
                                         done
                                         and cur_episode != 0
-                                        and cur_episode % self.config["save_interval"] == 0
+                                        and cur_episode % self.config["save_interval"]
+                                        == 0
                                     ):
                                         ep = cur_episode
 
@@ -577,7 +578,8 @@ class PolicyWorker(Thread):
                                     if (
                                         done
                                         and cur_episode != 0
-                                        and cur_episode % self.config["eval_interval"] == 0
+                                        and cur_episode % self.config["eval_interval"]
+                                        == 0
                                     ):
                                         self.evaluate()
 

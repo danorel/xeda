@@ -29,7 +29,9 @@ def make_item_set_validator(min_item_set_nodes: int, max_item_set_nodes: int):
 def target_set_node_sampler(members_df):
     sample, satisfies_conditions = (
         make_item_set_sampler(SAMPLING_RATE),
-        make_item_set_validator(SAMPLING_MIN_ITEM_SET_NODES, SAMPLING_MAX_ITEM_SET_NODES),
+        make_item_set_validator(
+            SAMPLING_MIN_ITEM_SET_NODES, SAMPLING_MAX_ITEM_SET_NODES
+        ),
     )
 
     target_sets = []

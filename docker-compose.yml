@@ -10,13 +10,25 @@ services:
       - EDGE_PORT=4566
     env_file: .env
     ports:
-      - '4566-4597:4566-4597'
+      - "4566-4597:4566-4597"
     healthcheck:
-      test: [ "CMD", "awslocal", "s3api", "wait", "bucket-exists", "--bucket", $AWS_STORAGE_BUCKET_NAME ]
+      test: [ "CMD", "awslocal", "s3api", "wait", "bucket-exists", "--bucket", $AWS_S3_BUCKET_NAME ]
       interval: 10s
       timeout: 15s
       retries: 5
     volumes:
       - "./scripts/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
-      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    env_file: .env
+    ports:
+      - "$VECTOR_STORE_PORT:$VECTOR_STORE_PORT"
+    volumes:
+      - "index_data:/chroma/.chroma/index"
+
+volumes:
+  index_data:
+    driver: local

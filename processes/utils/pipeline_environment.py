@@ -109,7 +109,6 @@ class PipelineEnvironment(gym.Env):
         return self.set_state
 
     def get_contentrated_start_datasets(self):
-
         # examples = random.sample(
         #     list(self.state_encoder.target_items), k=20)
         # galaxies = self.pipeline.initial_collection[self.pipeline.initial_collection["galaxies.objID"].isin(

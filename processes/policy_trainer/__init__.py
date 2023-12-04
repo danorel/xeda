@@ -1,11 +1,11 @@
 import wandb
 
 from constants import (
-    POLICY_EPISODES, 
+    POLICY_EPISODES,
     POLICY_EPISODE_STEPS_CONCENTRATED,
     POLICY_EPISODE_STEPS_SCATTERED,
-    POLICY_WANDB_PROJECT, 
-    POLICY_WANDB_VERBOSE
+    POLICY_WANDB_PROJECT,
+    POLICY_WANDB_VERBOSE,
 )
 from constants.processes.policy_trainer import POLICY_BASE_CONFIG
 from .A3C import Policy
@@ -19,13 +19,15 @@ def policy_trainer(target_set_id: str, target_set_items: list[int], mode: str):
     elif mode == "concentrated":
         policy_episode_steps = POLICY_EPISODE_STEPS_CONCENTRATED
     else:
-        raise NotImplementedError("Please, provide training mode: 'scattered' or 'concentrated'")
+        raise NotImplementedError(
+            "Please, provide training mode: 'scattered' or 'concentrated'"
+        )
 
     policy_config = {
         **POLICY_BASE_CONFIG,
         "target_set": target_set_id,
         "mode": mode,
-        "episode_steps": policy_episode_steps
+        "episode_steps": policy_episode_steps,
     }
 
     if POLICY_WANDB_VERBOSE:

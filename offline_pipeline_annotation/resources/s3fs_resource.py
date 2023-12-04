@@ -2,6 +2,7 @@ import s3fs
 
 from dagster import ConfigurableResource, InitResourceContext
 
+
 class S3FSResource(ConfigurableResource):
     key: str
     secret: str
@@ -15,8 +16,6 @@ class S3FSResource(ConfigurableResource):
             secret=self.secret,
             endpoint_url=self.endpoint_url,
             use_ssl=self.use_ssl,
-            client_kwargs={
-                'region_name': self.region_name
-            } 
+            client_kwargs={"region_name": self.region_name},
         )
         return fs

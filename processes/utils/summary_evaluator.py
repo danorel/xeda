@@ -94,7 +94,6 @@ class SummaryEvaluator:
                         ]
                     ) / len(dataset.data)
                     if genre_ratio > genre_best_ratio:
-
                         print(
                             f"new best for {genre} {genre_best_ratio} => {genre_ratio}"
                         )

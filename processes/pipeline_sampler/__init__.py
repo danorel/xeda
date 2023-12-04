@@ -1,13 +1,11 @@
 from random import randrange
 
-from constants import (
-    PIPELINE_MIN_SIZE,
-    PIPELINE_MAX_SIZE
-)
+from constants import PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE
 from data_types.pipeline import RequestData
 from ..utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from ..utils.model_manager import ModelManager
 from .operators import by_distribution, by_facet, by_neighbors, by_superset
+
 
 def _get_initial_request_data(database_pipeline_cache, info, dataset: str = "galaxies"):
     pipeline: PipelineWithPrecalculatedSets = database_pipeline_cache[dataset]
@@ -26,7 +24,7 @@ def _get_initial_request_data(database_pipeline_cache, info, dataset: str = "gal
         previous_operation_states=None,
         previous_set_states=None,
         get_scores=True,
-        get_predicted_scores=True
+        get_predicted_scores=True,
     )
     return request_data
 
@@ -110,12 +108,12 @@ def sample_pipeline_from_models(models, database_pipeline_cache, info, logger):
     for i in range(pipeline_size):
         try:
             node, request_data = next_pipeline_iter(
-                database_pipeline_cache, 
-                model_manager, 
-                request_data
+                database_pipeline_cache, model_manager, request_data
             )
             pipeline.append(node)
         except ValueError:
-            logger.info(f"Unexpectedly exited from pipeline generation on step {i}. Saving pipeline as it is...")
+            logger.info(
+                f"Unexpectedly exited from pipeline generation on step {i}. Saving pipeline as it is..."
+            )
             break
     return pipeline

@@ -450,7 +450,6 @@ def prepare_data(
                 len(groups), index_build_process_count
             )
             for i in range(index_build_process_count):
-
                 futures.append(
                     executor.submit(
                         index_thread_function,

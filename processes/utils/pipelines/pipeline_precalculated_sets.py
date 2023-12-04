@@ -471,7 +471,7 @@ class PipelineWithPrecalculatedSets(Pipeline):
             lambda x: (x.attribute, x.value), axis=1
         )
         print("Selected a=v: ")
-        for (attribute_value_index, attribute_value) in set_selectivity_list.iloc[
+        for attribute_value_index, attribute_value in set_selectivity_list.iloc[
             0:3
         ].iterrows():
             print(

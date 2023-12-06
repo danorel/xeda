@@ -1,5 +1,6 @@
 import chromadb
 import copy
+import json
 import uuid
 
 from chromadb.utils import embedding_functions
@@ -22,38 +23,49 @@ vector_store = chromadb.HttpClient(
     port=VECTOR_STORE_PORT
 )
 
-vector_collection = vector_store.get_or_create_collection(
-    name=VECTOR_STORE_COLLECTION, 
-    embedding_function=pretrained_embeddings,
-    metadata={
-        "hnsw:space": "cosine"
-    }
-)
+try:
+    vector_collection = vector_store.create_collection(
+        name=VECTOR_STORE_COLLECTION, 
+        embedding_function=pretrained_embeddings,
+        metadata={
+            "hnsw:space": "cosine"
+        }
+    )
+except:
+    vector_collection = vector_store.get_collection(VECTOR_STORE_COLLECTION)
+
+
+def node_to_encoding(node):
+    annotation = node["annotation"]
+    node_encoding = []
+    for k, v in annotation.items():
+        if isinstance(v, dict):
+            for key in v:
+                node_encoding.append(f"{k}_{key} = {v[key]}")
+        else:
+            node_encoding.append(f"{k} = {v}")
+    return ', '.join(node_encoding)
+
 
 def pipeline_to_splits(pipeline: Pipeline) -> list[Pipeline]:
     splits = []
     pipeline_encoding = []
     for node in reversed(pipeline):
-        annotation = node["annotation"]
-        node_encoding = []
-        for k, v in annotation.items():
-            if isinstance(v, dict):
-                for key in v:
-                    node_encoding.append(f"{k}_{key} = {v[key]}")
-            else:
-                node_encoding.append(f"{k} = {v}")
-        pipeline_encoding.append(', '.join(node_encoding))
+        node_encoding = node_to_encoding(node)
+        pipeline_encoding.append(node_encoding)
         splits.append(copy.deepcopy(pipeline_encoding))
     return splits
 
 
 def pipeline_to_embedding(pipeline: Pipeline):
     pipeline_splits = pipeline_to_splits(pipeline)
-    pipeline_ids, pipeline_documents = (
-        [str(uuid.uuid4()) for i in range(len(pipeline_splits))],
+    pipeline_ids, pipeline_documents, pipeline_sentences = (
+        [str(uuid.uuid4()) for _ in range(len(pipeline_splits))],
+        [json.dumps(copy.deepcopy(pipeline)) for _ in range(len(pipeline_splits))],
         [';'.join(pipeline_split) for pipeline_split in pipeline_splits]
     )
     vector_collection.add(
         ids=pipeline_ids,
-        documents=pipeline_documents
+        documents=pipeline_documents,
+        embeddings=pretrained_embeddings(pipeline_sentences),
     )

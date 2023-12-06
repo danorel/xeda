@@ -3,7 +3,7 @@ import typing_extensions as te
 
 from pydantic import BaseModel
 
-from data_types.annotation import Annotation
+from data_types.annotation import Annotation, PartialAnnotation
 
 
 """
@@ -117,6 +117,10 @@ class AnnotatedPipelineItemEda4Sum(PipelineItemEda4Sum):
     annotation: Annotation
 
 
+class AnnotatedPartialPipelineItemEda4Sum(PipelineItemEda4Sum):
+    annotation: PartialAnnotation
+
+
 PipelineType = te.Literal["dora", "eda4sum"]
 PipelineKind = te.Literal["raw", "annotated"]
 
@@ -125,6 +129,8 @@ PipelineEda4Sum = t.List[PipelineItemEda4Sum]
 
 AnnotatedPipelineDora = t.List[AnnotatedPipelineItemDora]
 AnnotatedPipelineEda4Sum = t.List[AnnotatedPipelineItemEda4Sum]
+
+AnnotatedPartialPipelineEda4Sum = t.List[AnnotatedPartialPipelineItemEda4Sum]
 
 T = te.TypeVar("T")
 K = te.TypeVar("K")

@@ -5,7 +5,7 @@ from data_types.pipeline import (
     PipelineEda4Sum,
     PipelineItemEda4Sum,
     AnnotatedPipelineEda4Sum,
-    AnnotatedPipelineItemEda4Sum,
+    AnnotatedPipelineItemEda4Sum
 )
 from data_types.annotation import Annotation
 
@@ -50,15 +50,6 @@ def _find_delta_diversity(
     return pipeline_item_next["distance"] - pipeline_item_current["distance"]
 
 
-def _find_delta_galaxy_score(
-    pipeline_item_current: PipelineEda4Sum, pipeline_item_next: PipelineEda4Sum
-) -> float:
-    return (
-        pipeline_item_next["galaxy_class_score"]
-        - pipeline_item_current["galaxy_class_score"]
-    )
-
-
 def _find_utility_weights(
     pipeline_item_current: PipelineEda4Sum, pipeline_item_next: PipelineEda4Sum
 ) -> t.List[float]:
@@ -97,9 +88,6 @@ def annotate_pipeline(
             )
             delta_novelty = _find_delta_novelty(pipeline[item], pipeline[item + 1])
             delta_diversity = _find_delta_diversity(pipeline[item], pipeline[item + 1])
-            delta_galaxy_score = _find_delta_galaxy_score(
-                pipeline[item], pipeline[item + 1]
-            )
             delta_utility_weights = _find_utility_weights(
                 pipeline[item], pipeline[item + 1]
             )
@@ -107,7 +95,6 @@ def annotate_pipeline(
             delta_uniformity = 0
             delta_novelty = 0
             delta_diversity = 0
-            delta_galaxy_score = 0
             delta_utility_weights = [0.0, 0.0, 0.0]
 
         familiarity = 0.0
@@ -136,17 +123,14 @@ def annotate_pipeline(
             delta_uniformity=delta_uniformity,
             delta_novelty=delta_novelty,
             delta_diversity=delta_diversity,
-            delta_score_galaxy=delta_galaxy_score,
             delta_utilityWeights=delta_utility_weights,
             current_uniformity=pipeline[item]["uniformity"],
             current_novelty=pipeline[item]["novelty"],
             current_diversity=pipeline[item]["distance"],
-            current_score_galaxy=pipeline[item]["galaxy_class_score"],
             current_utilityWeights=pipeline[item]["utilityWeights"],
             final_uniformity=pipeline[-1]["uniformity"],
             final_novelty=pipeline[-1]["novelty"],
             final_diversity=pipeline[-1]["distance"],
-            final_score_galaxy=pipeline[-1]["galaxy_class_score"],
             final_utilityWeights=pipeline[-1]["utilityWeights"],
             familiarity=familiarity,
             curiosity=curiosity,

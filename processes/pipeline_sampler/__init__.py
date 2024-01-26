@@ -1,17 +1,17 @@
 from random import randrange
 
-from constants import PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE
+from constants import DATA_NAME, PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE
 from data_types.pipeline import RequestData
 from ..utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from ..utils.model_manager import ModelManager
 from .operators import by_distribution, by_facet, by_neighbors, by_superset
 
 
-def _get_initial_request_data(database_pipeline_cache, info, dataset: str = "galaxies"):
-    pipeline: PipelineWithPrecalculatedSets = database_pipeline_cache[dataset]
+def _get_initial_request_data(database_pipeline_cache, info):
+    pipeline: PipelineWithPrecalculatedSets = database_pipeline_cache[DATA_NAME]
     request_data = RequestData(
         input_set_id=-1,
-        dataset_to_explore=dataset,
+        dataset_to_explore=DATA_NAME,
         dataset_ids=[],
         weights_mode="custom",
         utility_weights=info.get("utility_weights"),
@@ -100,7 +100,7 @@ def next_pipeline_iter(
 
 
 def sample_pipeline_from_models(models, database_pipeline_cache, info, logger):
-    model_manager = ModelManager(database_pipeline_cache["galaxies"], models)
+    model_manager = ModelManager(database_pipeline_cache[DATA_NAME], models)
     request_data = _get_initial_request_data(database_pipeline_cache, info)
     pipeline = []
     pipeline_size = randrange(PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE)

@@ -10,9 +10,15 @@ from dagster import (
     asset,
 )
 
-from constants import AWS_S3_BUCKET_NAME, GROUPS_CSV_PATH
+from constants import (
+    AWS_S3_BUCKET_NAME, 
+    DATA_NAME, 
+    DATASET, 
+    GROUPS_CSV_PATH
+)
 from processes import (
     annotate_pipeline,
+    generate_mean_vectors,
     policy_trainer,
     target_set_sampler,
     sample_pipeline_from_models,
@@ -39,23 +45,29 @@ hourly_partitions = HourlyPartitionsDefinition(
 @asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
 def datasets(context: AssetExecutionContext):
     cache = {}
-    cache["galaxies"] = PipelineWithPrecalculatedSets(
-        database_name="sdss",
-        initial_collection_names=["galaxies"],
+    cache[DATA_NAME] = PipelineWithPrecalculatedSets(
+        database_name=DATASET,
+        initial_collection_names=[DATA_NAME],
         discrete_categories_count=10,
         min_set_size=10,
         exploration_columns=[
-            "galaxies.u",
-            "galaxies.g",
-            "galaxies.r",
-            "galaxies.i",
-            "galaxies.z",
-            "galaxies.petroRad_r",
-            "galaxies.redshift",
+            f"{DATA_NAME}.u",
+            f"{DATA_NAME}.g",
+            f"{DATA_NAME}.r",
+            f"{DATA_NAME}.i",
+            f"{DATA_NAME}.z",
+            f"{DATA_NAME}.petroRad_r",
+            f"{DATA_NAME}.redshift",
         ],
-        id_column="galaxies.objID",
+        id_column=f"{DATA_NAME}.objID",
     )
     yield Output(cache)
+
+
+@asset(partitions_def=hourly_partitions)
+def mean_vectors(datasets: dict):
+    pipeline = datasets[DATA_NAME]
+    generate_mean_vectors(pipeline)
 
 
 @asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
@@ -112,15 +124,17 @@ def training_configs(context: AssetExecutionContext, target_sets: pd.DataFrame):
 
     for _, target_set in target_sets.iterrows():
         for policy_mode in ["scattered", "concentrated"]:
-            df = df.append(
-                {
-                    "target_set_id": target_set["id"],
-                    "target_set_items": target_set["items"],
-                    "target_set_sampling_method": target_set["sampling_method"],
-                    "policy_mode": policy_mode,
-                },
-                ignore_index=True,
-            )
+            df = pd.concat([
+                df,
+                pd.DataFrame([
+                    {
+                        "target_set_id": target_set["id"],
+                        "target_set_items": target_set["items"],
+                        "target_set_sampling_method": target_set["sampling_method"],
+                        "policy_mode": policy_mode,
+                    },
+                ])
+            ], ignore_index=True)
             context.log.info(
                 f"Populated TargetSet[id={target_set['id']}] with mode={policy_mode}"
             )
@@ -177,14 +191,16 @@ def policies(
             model_name="critic",
         )
 
-        df = df.append(
-            {
-                "target_set_id": training_config["target_set_id"],
-                "policy_mode": training_config["policy_mode"],
-                "policy_name": policy_name,
-            },
-            ignore_index=True,
-        )
+        df = pd.concat([
+            df,
+            pd.DataFrame([
+                {
+                    "target_set_id": training_config["target_set_id"],
+                    "policy_mode": training_config["policy_mode"],
+                    "policy_name": policy_name,
+                },
+            ])
+        ], ignore_index=True)
 
         context.log.info(
             f"Trained policy with TargetSet[id={training_config['target_set_id']}] and mode={training_config['policy_mode']}]"
@@ -206,6 +222,7 @@ def pipelines(
     s3fs: S3FSResource,
     policies: pd.DataFrame,
     datasets: dict,
+    mean_vectors
 ):
     df = pd.DataFrame(
         columns=["pipeline_name", "policy_name", "policy_mode", "target_set_id"]
@@ -249,15 +266,17 @@ def pipelines(
             pipeline=raw_pipeline,
         )
 
-        df = df.append(
-            {
-                "pipeline_name": raw_pipeline_name,
-                "policy_name": policy["policy_name"],
-                "policy_mode": policy["policy_mode"],
-                "target_set_id": policy["target_set_id"],
-            },
-            ignore_index=True,
-        )
+        df = pd.concat([
+            df,
+            pd.DataFrame([
+                {
+                    "pipeline_name": raw_pipeline_name,
+                    "policy_name": policy["policy_name"],
+                    "policy_mode": policy["policy_mode"],
+                    "target_set_id": policy["target_set_id"],
+                },
+            ])
+        ], ignore_index=True)
 
         context.log.info(
             f"Generated pipeline using policy trained on TargetSet[id={policy['target_set_id']}] and mode={policy['policy_mode']}"
@@ -307,15 +326,17 @@ def annotated_pipelines(
             pipeline=annotated_pipeline,
         )
 
-        df = df.append(
-            {
-                "pipeline_name": annotated_pipeline_name,
-                "policy_name": pipeline["policy_name"],
-                "policy_mode": pipeline["policy_mode"],
-                "target_set_id": pipeline["target_set_id"],
-            },
-            ignore_index=True,
-        )
+        df = pd.concat([
+            df,
+            pd.DataFrame([
+                {
+                    "pipeline_name": annotated_pipeline_name,
+                    "policy_name": pipeline["policy_name"],
+                    "policy_mode": pipeline["policy_mode"],
+                    "target_set_id": pipeline["target_set_id"],
+                },
+            ])
+        ], ignore_index=True)
 
         context.log.info(f"{pipeline['pipeline_name']} annotation has been finished")
 

@@ -8,7 +8,7 @@ a. Install data:
 
 ```bash
 cd data
-cat data.tar.gz.* | tar xzvf -
+find . -name '*.tar.gz' -execdir tar -xzvf '{}' \;
 ```
 
 b. Install dependencies:

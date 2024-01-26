@@ -2,6 +2,7 @@ import json
 import traceback
 import numpy as np
 import tensorflow as tf
+import typing as t
 import wandb
 
 from copy import Error
@@ -32,7 +33,7 @@ class Policy:
         agent_name: str,
         agent_config: dict,
         target_set_id: str,
-        target_set_items: list[int],
+        target_set_items: t.List[int],
         mode: str,
     ):
         self.env_name = env_name

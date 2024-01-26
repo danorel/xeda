@@ -4,19 +4,26 @@ This is a [Dagster](https://dagster.io/) project scaffolded with [`dagster proje
 
 ## Getting started
 
-a. Install dependencies:
+a. Install data:
+
+```bash
+cd data
+cat data.tar.gz.* | tar xzvf -
+```
+
+b. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-b. Then, start the Docker-Compose containers responsible for pipelines:
+c. Then, start the Docker-Compose containers responsible for pipelines:
 
 ```bash
 docker-compose up -d
 ```
 
-c. Then, start the Dagster UI web server:
+d. Then, start the Dagster UI web server:
 
 ```bash
 dagster dev

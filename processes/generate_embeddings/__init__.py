@@ -1,6 +1,7 @@
 import chromadb
 import copy
 import json
+import typing as t
 import uuid
 
 from chromadb.utils import embedding_functions
@@ -47,7 +48,7 @@ def node_to_encoding(node):
     return ', '.join(node_encoding)
 
 
-def pipeline_to_splits(pipeline: Pipeline) -> list[Pipeline]:
+def pipeline_to_splits(pipeline: Pipeline) -> t.List[Pipeline]:
     splits = []
     pipeline_encoding = []
     for node in reversed(pipeline):

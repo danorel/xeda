@@ -6,7 +6,7 @@ import random
 
 from gym import spaces
 
-from constants.dataset import TARGET_SET_KNOWN_PATH
+from constants.dataset import DATA_NAME, TARGET_SETS_PATH 
 
 from .pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from .pipelines.predicate_item import PredicateItem
@@ -111,11 +111,11 @@ class PipelineEnvironment(gym.Env):
     def get_contentrated_start_datasets(self):
         # examples = random.sample(
         #     list(self.state_encoder.target_items), k=20)
-        # galaxies = self.pipeline.initial_collection[self.pipeline.initial_collection["galaxies.objID"].isin(
+        # galaxies = self.pipeline.initial_collection[self.pipeline.initial_collection[f"{DATA_NAME}.objID"].isin(
         #     examples)]
         examples = list(self.state_encoder.target_items)
         galaxies = self.pipeline.initial_collection[
-            self.pipeline.initial_collection["galaxies.objID"].isin(examples)
+            self.pipeline.initial_collection[f"{DATA_NAME}.objID"].isin(examples)
         ]
 
         columns = list(
@@ -126,16 +126,16 @@ class PipelineEnvironment(gym.Env):
         )
 
         biggest_group = (
-            galaxies[columns + ["galaxies.objID"]]
+            galaxies[columns + [f"{DATA_NAME}.objID"]]
             .groupby(columns, observed=True)
             .count()
             .reset_index()
-            .sort_values(by="galaxies.objID", ascending=False)
+            .sort_values(by=f"{DATA_NAME}.objID", ascending=False)
             .iloc[0]
         )
         dataset = Dataset()
         for key, value in biggest_group.iteritems():
-            if key != "galaxies.objID":
+            if key != f"{DATA_NAME}.objID":
                 dataset.predicate.append(
                     PredicateItem(key, "==", value, is_category=True)
                 )
@@ -173,7 +173,7 @@ class PipelineEnvironment(gym.Env):
         available_target_sets = ["green-peas", "hiis", "lcgs", "low-metallicity-bcds"]
         self.target_set_id = random.choice(available_target_sets)
         self.target_set_index = available_target_sets.index(self.target_set_id)
-        with open(TARGET_SET_KNOWN_PATH / f"{self.target_set_id}.json") as f:
+        with open(TARGET_SETS_PATH / f"{self.target_set_id}.json") as f:
             self.initial_target_items = set(json.load(f))
         example_ids = random.choices(
             list(self.initial_target_items), k=self.number_of_examples
@@ -181,7 +181,7 @@ class PipelineEnvironment(gym.Env):
         self.example_state = []
         for id in example_ids:
             item = self.pipeline.initial_collection.loc[
-                self.pipeline.initial_collection["galaxies.objID"] == id
+                self.pipeline.initial_collection[f"{DATA_NAME}.objID"] == id
             ].iloc[0]
             for column in self.pipeline.exploration_columns:
                 self.example_state.append(

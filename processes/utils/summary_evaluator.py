@@ -2,7 +2,7 @@ import json
 
 from scipy.spatial.distance import cityblock
 
-from constants import DATASET_CLASSES_MEAN_VECTORS_PATH
+from constants import TARGET_SETS_MEAN_VECTORS_PATH 
 
 
 class SummaryEvaluator:
@@ -10,7 +10,7 @@ class SummaryEvaluator:
         self.pipeline = pipeline
         self.utility_manager = pipeline.utility_manager
         if self.pipeline.database_name == "sdss":
-            with DATASET_CLASSES_MEAN_VECTORS_PATH.open("r") as f:
+            with TARGET_SETS_MEAN_VECTORS_PATH.open("r") as f:
                 self.galaxy_classes = json.load(f)
             self.galaxy_class_scores = (
                 dict.fromkeys(list(self.galaxy_classes.keys()), None)

@@ -1,12 +1,13 @@
 import pathlib
 
 DATA_FOLDER = "data"
+DATA_NAME = "galaxies"
 DATASET = "sdss"
 DATASET_INDEX = "galaxies_100000_index"
 DATASET_PATH = pathlib.Path() / DATA_FOLDER / DATASET
 
-TARGET_SET_KNOWN_PATH = DATASET_PATH / "known_target_sets"
-DATASET_CLASSES_MEAN_VECTORS_PATH = DATASET_PATH / "galaxy_classes_mean_vectors.json"
+TARGET_SETS_PATH = DATASET_PATH / "target_sets"
+TARGET_SETS_MEAN_VECTORS_PATH = DATASET_PATH / "target_sets_mean_vectors.json"
 
 GROUPS_CSV_FILENAME = "groups.csv"
 GROUPS_CSV_PATH = DATASET_PATH / DATASET_INDEX / GROUPS_CSV_FILENAME

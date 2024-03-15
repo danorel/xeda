@@ -18,12 +18,8 @@ from processes import (
 )
 from ...resources import S3FSResource
 
-start_date = dt.datetime.now().date()
-hourly_partitions = HourlyPartitionsDefinition(
-    start_date=f"{start_date:%Y-%m-%d-%H:%M}"
-)
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def generate_embeddings(
     context: AssetExecutionContext,
     s3fs: S3FSResource,

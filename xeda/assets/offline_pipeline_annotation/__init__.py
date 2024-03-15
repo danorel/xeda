@@ -11,9 +11,9 @@ from dagster import (
 )
 
 from constants import (
-    AWS_S3_BUCKET_NAME, 
-    DATA_NAME, 
-    DATASET, 
+    AWS_S3_BUCKET_NAME,
+    DATA_NAME,
+    DATASET,
     GROUPS_CSV_PATH
 )
 from processes import (
@@ -36,13 +36,8 @@ from utils.s3 import (
 )
 from ...resources import S3FSResource
 
-start_date = dt.datetime.now().date()
-hourly_partitions = HourlyPartitionsDefinition(
-    start_date=f"{start_date:%Y-%m-%d-%H:%M}"
-)
 
-
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def datasets(context: AssetExecutionContext):
     cache = {}
     cache[DATA_NAME] = PipelineWithPrecalculatedSets(
@@ -64,13 +59,13 @@ def datasets(context: AssetExecutionContext):
     yield Output(cache)
 
 
-@asset(partitions_def=hourly_partitions)
+@asset()
 def mean_vectors(datasets: dict):
     pipeline = datasets[DATA_NAME]
     generate_mean_vectors(pipeline)
 
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def groups(context: AssetExecutionContext):
     df = pd.read_csv(GROUPS_CSV_PATH)
 
@@ -84,7 +79,7 @@ def groups(context: AssetExecutionContext):
     yield Output(df)
 
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def target_sets(context: AssetExecutionContext, groups: pd.DataFrame):
     df = pd.DataFrame(columns=["id", "item_set", "sampling_method"])
 
@@ -111,7 +106,7 @@ def target_sets(context: AssetExecutionContext, groups: pd.DataFrame):
     yield Output(df)
 
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def training_configs(context: AssetExecutionContext, target_sets: pd.DataFrame):
     df = pd.DataFrame(
         columns=[
@@ -149,7 +144,7 @@ def training_configs(context: AssetExecutionContext, target_sets: pd.DataFrame):
     yield Output(df)
 
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def policies(
     context: AssetExecutionContext, s3fs: S3FSResource, training_configs: pd.DataFrame
 ):
@@ -216,7 +211,7 @@ def policies(
     yield Output(df)
 
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def pipelines(
     context: AssetExecutionContext,
     s3fs: S3FSResource,
@@ -292,7 +287,7 @@ def pipelines(
     yield Output(df)
 
 
-@asset(io_manager_key="s3_io_manager", partitions_def=hourly_partitions)
+@asset(io_manager_key="s3_io_manager")
 def annotated_pipelines(
     context: AssetExecutionContext,
     s3fs: S3FSResource,

@@ -134,7 +134,7 @@ class PipelineEnvironment(gym.Env):
             .iloc[0]
         )
         dataset = Dataset()
-        for key, value in biggest_group.iteritems():
+        for key, value in biggest_group.items():
             if key != f"{DATA_NAME}.objID":
                 dataset.predicate.append(
                     PredicateItem(key, "==", value, is_category=True)

@@ -20,13 +20,13 @@ pretrained_embeddings = embedding_functions.OpenAIEmbeddingFunction(
 )
 
 vector_store = chromadb.HttpClient(
-    host=VECTOR_STORE_HOST, 
+    host=VECTOR_STORE_HOST,
     port=VECTOR_STORE_PORT
 )
 
 try:
     vector_collection = vector_store.create_collection(
-        name=VECTOR_STORE_COLLECTION, 
+        name=VECTOR_STORE_COLLECTION,
         embedding_function=pretrained_embeddings,
         metadata={
             "hnsw:space": "cosine"

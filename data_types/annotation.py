@@ -6,6 +6,9 @@ class Annotation(te.TypedDict):
     remaining_operators: dict
     current_operator: str
 
+    remaining_dimensions: dict
+    current_dimension: str
+
     current_novelty: float
     current_uniformity: float
     current_diversity: float
@@ -27,6 +30,7 @@ class Annotation(te.TypedDict):
 
 class PartialAnnotation(te.TypedDict):
     current_operator: str
+    current_dimension: str
 
     current_novelty: float
     current_uniformity: float

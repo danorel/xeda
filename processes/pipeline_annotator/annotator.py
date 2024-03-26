@@ -31,6 +31,18 @@ def _find_remaining_operators(pipeline: PipelineEda4Sum) -> dict:
 
     return operators
 
+def _find_remaining_dimensions(pipeline: PipelineEda4Sum) -> dict:
+    dimensions = {}
+    pipeline = pipeline[1:]
+    for pipeline_item in pipeline:
+        current_dimension = pipeline_item["checkedDimension"]
+        if current_dimension in dimensions.keys():
+            dimensions[current_dimension] += 1
+        else:
+            dimensions[current_dimension] = 1
+
+    return dimensions
+
 
 def _find_delta_uniformity(
     pipeline_item_current: PipelineItemEda4Sum, pipeline_item_next: PipelineItemEda4Sum
@@ -119,7 +131,9 @@ def annotate_pipeline(
         annotation = Annotation(
             total_length=length,
             remaining_operators=_find_remaining_operators(pipeline[item:]),
+            remaining_dimensions=_find_remaining_dimensions(pipeline[item:]),
             current_operator=pipeline[item]["operator"],
+            current_dimension=pipeline[item]["checkedDimension"],
             delta_uniformity=delta_uniformity,
             delta_novelty=delta_novelty,
             delta_diversity=delta_diversity,

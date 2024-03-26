@@ -1,13 +1,13 @@
 import pandas as pd
 import typing as t
 
-from data_types.pipeline import (
+from typings.pipeline import (
     PipelineEda4Sum,
     PipelineItemEda4Sum,
     AnnotatedPipelineEda4Sum,
     AnnotatedPipelineItemEda4Sum
 )
-from data_types.annotation import Annotation
+from typings.annotation import Annotation
 
 
 def find_item_set(
@@ -30,6 +30,7 @@ def _find_remaining_operators(pipeline: PipelineEda4Sum) -> dict:
             operators[current_operator] = 1
 
     return operators
+
 
 def _find_remaining_dimensions(pipeline: PipelineEda4Sum) -> dict:
     dimensions = {}

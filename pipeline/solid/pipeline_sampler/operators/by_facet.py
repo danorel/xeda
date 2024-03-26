@@ -1,7 +1,7 @@
 import json
 import traceback
 
-from data_types.pipeline import RequestData
+from typings.pipeline import RequestData
 from ...utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from ...utils.model_manager import ModelManager
 from .get_items_sets import get_items_sets

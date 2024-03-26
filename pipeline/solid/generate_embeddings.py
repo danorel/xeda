@@ -12,7 +12,7 @@ from constants import (
     VECTOR_STORE_HOST,
     VECTOR_STORE_PORT
 )
-from data_types.pipeline import Pipeline
+from typings.pipeline import Pipeline
 
 pretrained_embeddings = embedding_functions.OpenAIEmbeddingFunction(
     api_key=OPENAI_API_KEY,

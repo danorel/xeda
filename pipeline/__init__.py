@@ -14,14 +14,14 @@ from . import resources
 
 all_assets = load_assets_from_modules([assets])
 
-xeda_schedule = ScheduleDefinition(
+schedule = ScheduleDefinition(
     job=define_asset_job("offline_pipeline_annotation", selection=AssetSelection.all()),
     cron_schedule="0 * * * *",
 )
 
 defs = Definitions(
     assets=all_assets,
-    schedules=[xeda_schedule],
+    schedules=[schedule],
     resources={
         "s3_io_manager": s3_pickle_io_manager.configured(
             {"s3_bucket": {"env": "AWS_S3_BUCKET_NAME"}}

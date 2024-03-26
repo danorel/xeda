@@ -1,10 +1,8 @@
-import datetime as dt
 import pandas as pd
 import uuid
 
 from dagster import (
     AssetExecutionContext,
-    HourlyPartitionsDefinition,
     MetadataValue,
     Output,
     asset,
@@ -16,15 +14,16 @@ from constants import (
     DATASET,
     GROUPS_CSV_PATH
 )
-from processes import (
+from ..solid.utils.pipelines.pipeline_precalculated_sets import (
+    PipelineWithPrecalculatedSets,
+)
+from ..resources import S3FSResource
+from ..solid import (
     annotate_pipeline,
     generate_mean_vectors,
     policy_trainer,
     target_set_sampler,
     sample_pipeline_from_models,
-)
-from processes.utils.pipelines.pipeline_precalculated_sets import (
-    PipelineWithPrecalculatedSets,
 )
 from utils.s3 import (
     pull_info_json,
@@ -34,7 +33,6 @@ from utils.s3 import (
     push_keras_model,
     push_pipeline_json,
 )
-from ...resources import S3FSResource
 
 
 @asset(io_manager_key="s3_io_manager")

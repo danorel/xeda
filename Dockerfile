@@ -9,6 +9,6 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy source code
-COPY xeda ./xeda
+COPY pipeline ./pipeline
 
 CMD ["dagit", "-h", "0.0.0.0", "-p", "3000"]

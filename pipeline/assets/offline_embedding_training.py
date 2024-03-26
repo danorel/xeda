@@ -1,9 +1,7 @@
-import datetime as dt
 import pandas as pd
 
 from dagster import (
     AssetExecutionContext,
-    HourlyPartitionsDefinition,
     asset,
 )
 
@@ -13,10 +11,8 @@ from constants import (
 from utils.s3 import (
     pull_pipeline_json
 )
-from processes import (
-    pipeline_to_embedding
-)
-from ...resources import S3FSResource
+from ..solid import pipeline_to_embedding
+from ..resources import S3FSResource
 
 
 @asset(io_manager_key="s3_io_manager")

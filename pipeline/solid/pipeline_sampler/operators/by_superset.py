@@ -1,13 +1,13 @@
 import json
 import traceback
 
-from data_types.pipeline import RequestData
+from typings.pipeline import RequestData
 from ...utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from ...utils.model_manager import ModelManager
 from .get_items_sets import get_items_sets
 
 
-def by_distribution(
+def by_superset(
     database_pipeline_cache, model_manager: ModelManager, operator_request: RequestData
 ):
     result = []
@@ -15,13 +15,19 @@ def by_distribution(
         pipeline: PipelineWithPrecalculatedSets = database_pipeline_cache[
             operator_request.dataset_to_explore
         ]
-        dataset = pipeline.get_groups_as_datasets([operator_request.input_set_id])[0]
-        result_sets = pipeline.by_distribution(dataset=dataset)
+        if operator_request.input_set_id == -1:
+            dataset = pipeline.get_dataset()
+        else:
+            dataset = pipeline.get_groups_as_datasets([operator_request.input_set_id])[
+                0
+            ]
+        result_sets = pipeline.by_superset(dataset=dataset)
         result_sets = [d for d in result_sets if d.set_id != None and d.set_id >= 0]
         if len(result_sets) == 0:
             result_sets = [dataset]
         prediction_result = {}
-        operation_identifier = f"by_distribution--{dataset.set_id}"
+
+        operation_identifier = f"by_superset--{dataset.set_id}"
         if not operation_identifier in operator_request.previous_operations:
             operator_request.previous_operations.append(operation_identifier)
         if operator_request.weights_mode != None:
@@ -32,6 +38,7 @@ def by_distribution(
                 operator_request.previous_set_states,
                 operator_request.previous_operation_states,
             )
+
         result = get_items_sets(
             result_sets,
             pipeline,
@@ -44,6 +51,7 @@ def by_distribution(
             previous_operations=operator_request.previous_operations,
             decreasing_gamma=operator_request.decreasing_gamma,
         )
+
         result.update(prediction_result)
         return result
     except Exception as error:

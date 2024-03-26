@@ -2,7 +2,6 @@ import gym
 import numpy as np
 import json
 import random
-import random
 
 from gym import spaces
 

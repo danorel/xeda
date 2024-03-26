@@ -3,7 +3,7 @@ import typing_extensions as te
 
 from pydantic import BaseModel
 
-from data_types.annotation import Annotation, PartialAnnotation
+from typings.annotation import Annotation, PartialAnnotation
 
 
 """

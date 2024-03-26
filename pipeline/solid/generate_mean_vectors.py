@@ -3,9 +3,11 @@ import numpy as np
 
 from constants import DATA_NAME, TARGET_SETS_PATH, TARGET_SETS_MEAN_VECTORS_PATH
 
+
 def np_encoder(object):
     if isinstance(object, np.generic):
         return object.item()
+
 
 def generate_mean_vectors(pipeline):
     mean_vectors = {}

@@ -1,7 +1,7 @@
 from random import randrange
 
 from constants import DATA_NAME, PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE
-from data_types.pipeline import RequestData
+from typings.pipeline import RequestData
 from ..utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from ..utils.model_manager import ModelManager
 from .operators import by_distribution, by_facet, by_neighbors, by_superset

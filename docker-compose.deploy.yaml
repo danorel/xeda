@@ -1,19 +1,6 @@
 version: '3.3'
 
 services:
-  dagster-dagit:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - 3000:3000
-
-  dagster-daemon:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: "dagster-daemon run"
-
   chroma:
     image: ghcr.io/chroma-core/chroma:latest
     env_file: .env

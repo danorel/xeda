@@ -181,3 +181,7 @@ tmp
 
 # Wandb
 wandb
+
+# Dataset
+data/sdss/
+data/spotify/

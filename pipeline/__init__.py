@@ -16,7 +16,7 @@ all_assets = load_assets_from_modules([assets])
 
 schedule = ScheduleDefinition(
     job=define_asset_job("offline_pipeline_annotation", selection=AssetSelection.all()),
-    cron_schedule="0 * * * *",
+    cron_schedule="*/30 * * * *",
 )
 
 defs = Definitions(

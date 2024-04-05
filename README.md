@@ -6,6 +6,12 @@ This is a [Dagster](https://dagster.io/) project scaffolded with [`dagster proje
 
 - Python: 3.8.15
 
+## Requirements for server:
+
+AWS EC2 instance = 't2.large' or larger:
+- RAM: 8GB+
+- SSD: 16GB+
+
 ## Getting started
 
 a. Install data:

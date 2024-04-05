@@ -18,10 +18,6 @@ class S3FSResource(ConfigurableResource):
             use_ssl=self.use_ssl,
             client_kwargs={
                 "region_name": self.region_name,
-                "connect_timeout": 5,
-                "retries": {
-                    "max_attempts": 0
-                }
             },
         )
         return fs

@@ -1,0 +1,7 @@
+aiofiles==0.5.0
+fastapi==0.110.1
+psycopg2_binary==2.8.6
+pydantic==2.7.0
+python_multipart==0.0.9
+starlette==0.37.2
+uvicorn==0.27.1

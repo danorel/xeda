@@ -1,7 +1,7 @@
 from random import randrange
 
 from constants import DATA_NAME, PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE
-from typings.pipeline import RequestData
+from typings.pipeline import OperatorRequestData
 from ..utils.pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from ..utils.model_manager import ModelManager
 from .operators import by_distribution, by_facet, by_neighbors, by_superset
@@ -9,7 +9,7 @@ from .operators import by_distribution, by_facet, by_neighbors, by_superset
 
 def _get_initial_request_data(database_pipeline_cache, info):
     pipeline: PipelineWithPrecalculatedSets = database_pipeline_cache[DATA_NAME]
-    request_data = RequestData(
+    request_data = OperatorRequestData(
         input_set_id=-1,
         dataset_to_explore=DATA_NAME,
         dataset_ids=[],
@@ -30,7 +30,7 @@ def _get_initial_request_data(database_pipeline_cache, info):
 
 
 def next_pipeline_iter(
-    database_pipeline_cache, model_manager, prev_request: RequestData
+    database_pipeline_cache, model_manager, prev_request: OperatorRequestData
 ):
     if len(prev_request.previous_operations):
         operator = prev_request.previous_operations[-1]
@@ -65,7 +65,7 @@ def next_pipeline_iter(
     if not prediction:
         raise ValueError("Prediction failed")
 
-    next_request = RequestData.parse_obj(prev_request.dict())
+    next_request = OperatorRequestData.parse_obj(prev_request.dict())
     next_set_id = prediction.get("predictedSetId")
     if next_set_id is not None:
         next_request.input_set_id = next_set_id

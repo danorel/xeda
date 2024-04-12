@@ -14,6 +14,8 @@ AWS EC2 instance = 't2.large' or larger:
 
 ## Getting started
 
+### Running data pipeline
+
 a. Install data:
 
 ```bash
@@ -21,7 +23,7 @@ cd data
 find . -name '*.tar.gz' -execdir tar -xzvf '{}' \;
 ```
 
-b. Install dependencies:
+b. Install dependencies at the root of the project:
 
 ```bash
 pip install -r requirements.txt
@@ -45,4 +47,21 @@ d. Then, start the Dagster UI web server:
 dagster dev
 ```
 
-Open http://localhost:3000 with your browser to see the project.
+Open http://localhost:3000 with your browser to see the UI.
+
+### Running XEDA UI
+
+
+a. Install dependencies at the root of the project:
+
+```bash
+pip install -r requirements.txt
+```
+
+b. Then, start the XEDA UI web server:
+
+```bash
+python -m web.server
+```
+
+Open http://localhost:8080 with your browser to see the UI.

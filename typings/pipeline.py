@@ -21,7 +21,24 @@ class Predicate(te.TypedDict):
     value: str
 
 
-class RequestData(BaseModel):
+PipelineType = te.Literal["dora", "eda4sum"]
+PipelineKind = te.Literal["raw", "annotated"]
+
+T = te.TypeVar("T")
+K = te.TypeVar("K")
+
+# TODO: te.Generic[T, K]
+Pipeline = t.List
+
+"""
+requests
+"""
+
+class ExplanationRequestData(BaseModel):
+    partial_pipeline: Pipeline
+
+
+class OperatorRequestData(BaseModel):
     dataset_to_explore: str
     input_set_id: t.Optional[int] = None
     dimensions: t.Optional[t.List[str]] = None
@@ -43,6 +60,15 @@ class RequestData(BaseModel):
     weights_mode: t.Optional[str] = None
 
 
+class RequestDataEda4Sum(OperatorRequestData):
+    evolving_parameter: str
+    evolution_type: str
+
+
+class RequestDataDora(OperatorRequestData):
+    pass
+
+
 """
 dora pipeline format
 """
@@ -54,10 +80,6 @@ class InputSetDora(te.TypedDict):
     predicate: t.List[Predicate]
     silhouette: t.Optional[t.Any]
     novelty: t.Optional[t.Any]
-
-
-class RequestDataDora(RequestData):
-    pass
 
 
 class PipelineItemDora(te.TypedDict):
@@ -88,11 +110,6 @@ class InputSetEda4Sum(te.TypedDict):
     uniformity: int
 
 
-class RequestDataEda4Sum(RequestData):
-    evolving_parameter: str
-    evolution_type: str
-
-
 class PipelineItemEda4Sum(te.TypedDict):
     selectedSetId: int
     operator: Operator
@@ -121,9 +138,6 @@ class AnnotatedPartialPipelineItemEda4Sum(PipelineItemEda4Sum):
     annotation: PartialAnnotation
 
 
-PipelineType = te.Literal["dora", "eda4sum"]
-PipelineKind = te.Literal["raw", "annotated"]
-
 PipelineDora = t.List[PipelineItemDora]
 PipelineEda4Sum = t.List[PipelineItemEda4Sum]
 
@@ -131,9 +145,3 @@ AnnotatedPipelineDora = t.List[AnnotatedPipelineItemDora]
 AnnotatedPipelineEda4Sum = t.List[AnnotatedPipelineItemEda4Sum]
 
 AnnotatedPartialPipelineEda4Sum = t.List[AnnotatedPartialPipelineItemEda4Sum]
-
-T = te.TypeVar("T")
-K = te.TypeVar("K")
-
-# TODO: te.Generic[T, K]
-Pipeline = t.List

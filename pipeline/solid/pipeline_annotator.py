@@ -87,7 +87,9 @@ def _find_familiarity_curiosity(seen_galaxies, item_members) -> t.Tuple[float, f
 
 
 def annotate_pipeline(
-    groups_df: pd.DataFrame, pipeline: PipelineEda4Sum, logger
+    groups_df: pd.DataFrame,
+    pipeline: PipelineEda4Sum, 
+    logger = None
 ) -> AnnotatedPipelineEda4Sum:
     seen_galaxies = []
 
@@ -122,7 +124,8 @@ def annotate_pipeline(
                 result_members = [int(num) for num in list_members]
 
             if item_members.empty:
-                logger.warn(f"Node[id={input_set_id}] is missing in .csv")
+                if logger is not None:
+                    logger.warn(f"Node[id={input_set_id}] is missing in .csv")
             else:
                 familiarity, curiosity = _find_familiarity_curiosity(
                     seen_galaxies, result_members
@@ -150,8 +153,11 @@ def annotate_pipeline(
             familiarity=familiarity,
             curiosity=curiosity,
         )
+        if 'annotation' in pipeline[item]:
+            pipeline[item].pop('annotation')
         annotated_pipeline_item = AnnotatedPipelineItemEda4Sum(
-            **pipeline[item], annotation=annotation
+            **pipeline[item],
+            annotation=annotation
         )
         annotated_pipeline.append(annotated_pipeline_item)
 

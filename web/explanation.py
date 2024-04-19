@@ -1,13 +1,9 @@
-import re
 import chromadb
 import json
 import typing as t
 import pandas as pd
 import typing as t
-import heapq
-import statistics
 
-from collections import Counter, defaultdict
 from chromadb.utils import embedding_functions
 from langchain.docstore.document import Document
 from langchain.chat_models import ChatOpenAI
@@ -211,84 +207,6 @@ def node_to_encoding(node):
     return ', '.join(node_encoding)
 
 
-def mine_dimensions(similar_pipeline_encodings):
-  dimensions = ['remaining_dimensions_u', 'remaining_dimensions_g', 'remaining_dimensions_r', 'remaining_dimensions_i', 'remaining_dimensions_z', 'remaining_dimensions_petroRad_r', 'remaining_dimensions_redshift']
-  dimensions_values = defaultdict(float)
-
-  for dimension in dimensions:
-      dimensions_values[dimension] += sum(encoding.get(dimension, 0.0) for encoding in similar_pipeline_encodings)
-
-  total_count = sum(dimensions_values.values()) + 0.000001
-  percentages_length = {key: value / total_count * 100 for key, value in dimensions_values.items()}
-
-  top_two_values = heapq.nlargest(2, percentages_length.values())
-
-  top_two_keys = [(key, value) for key, value in percentages_length.items() if value in top_two_values]
-  return top_two_keys
-
-
-def mine_operators(similar_pipeline_encodings):
-  operators = ['remaining_operators_by_neighbors', 'remaining_operators_by_superset', 'remaining_operators_by_distribution', 'remaining_operators_by_facet']
-  operator_values = defaultdict(float)
-
-  for operator in operators:
-      operator_values[operator] += sum(encoding.get(operator, 0.0) for encoding in similar_pipeline_encodings)
-
-  total_count = sum(operator_values.values()) + 0.000001
-  percentages_length = {key: value / total_count * 100 for key, value in operator_values.items()}
-
-  top_two_values = heapq.nlargest(4, percentages_length.values())
-  top_two_keys = [(key, value) for key, value in percentages_length.items() if value in top_two_values]
-  return top_two_keys
-
-
-def mine_length(similar_pipeline_encodings):
-  counts_length = Counter(encoding['total_length'] for encoding in similar_pipeline_encodings)
-  percentages_length = {key: count / len(counts_length) * 100 for key, count in counts_length.items()}
-
-  max_length = max(percentages_length, key=lambda k: percentages_length[k])
-  return int(max_length)
-
-
-def mine_count_of_similar_pipelines(similar_pipeline_encodings):
-  return len(similar_pipeline_encodings)
-
-
-def mine_familiarity(similar_pipeline_encodings):
-    counts = [
-        encoding['familiarity'] 
-        for encoding in similar_pipeline_encodings
-    ]
-    return (statistics.median(counts))
-
-
-def terminal_node_to_encoding(node: dict, step: int):
-    encoding = {
-        "total_length": node["annotation"]["total_length"],
-        "current_operator": node['operator'],
-        "current_dimension": node['checkedDimension'],
-        "current_utility": node['utility'],
-        "current_novelty": node['novelty'],
-        "current_diversity": node['distance'],
-        "current_galaxy_class_score": node['galaxy_class_score'],
-        "current_step": step
-    }
-    return encoding
-
-
-def pipeline_to_encoding(pipeline: list, step: int):
-    try:
-        if not len(pipeline):
-            return {}
-        
-        terminal_node = pipeline[-1]
-        terminal_encoding = terminal_node_to_encoding(terminal_node, step) 
-
-        return terminal_encoding
-    except:
-        return {}
-
-
 def explain(partial_pipeline: Pipeline):
     partial_annotated_pipeline = annotate_partial_pipeline(groups_df, partial_pipeline)
     partial_pipeline_partial_annotation = ';'.join([node_to_encoding(node) for node in partial_annotated_pipeline])
@@ -303,24 +221,4 @@ def explain(partial_pipeline: Pipeline):
     if not len(most_similar_responses['documents'][0]):
         return "Not found any similar pipelines"
     else:
-        step = len(partial_pipeline)
-        similar_pipeline_encodings = [
-            pipeline_to_encoding(pipeline, step)
-            for pipeline in most_similar_responses['documents']
-        ]
-        total_length, operator, dimension, familiarity, count_of_similar_pipelines = (
-            mine_length(similar_pipeline_encodings),
-            mine_operators(similar_pipeline_encodings),
-            mine_dimensions(similar_pipeline_encodings),
-            mine_familiarity(similar_pipeline_encodings),
-            mine_count_of_similar_pipelines(similar_pipeline_encodings),
-        )
-        steps_left = total_length - step
-        explanation = f"""
-        On average \033[94m{steps_left}\033[0m step/s, you will reach a scattered/concentrated set with an expected final familiarity of \033[94m{familiarity}\033[0m. \n
-        You are more likely to get there by focusing on the \033[94m{operator[0][0][20:]}\033[0m and \033[94m{operator[1][0][20:]}\033[0m operators and on \033[94m{dimension[0][0][21:]}\033[0m and \033[94m{dimension[1][0][21:]}\033[0m dimensions \n
-        You will probably finish with total length of \033[94m{total_length}\033[0m. \n'
-        You get this guidance because: in the \033[94m{count_of_similar_pipelines}\033[0m similar pipelines the following distribution of operator \033[94m{operator[0][0][20:]}\033[0m is \033[94m{round(operator[0][1], 2)}\033[0m, \033[94m{operator[1][0][20:]}\033[0m is \033[94m{round(operator[1][1], 2)}\033[0m, \033[94m{operator[2][0][20:]}\033[0m is \033[94m{round(operator[2][1], 2)}\033[0m, \033[94m{operator[3][0][20:]}\033[0m is \033[94m{round(operator[3][1], 2)}\033[0m; \n'
-        the distribution of dimension \033[94m{dimension[0][0][21:]}\033[0m is \033[94m{round(dimension[0][1], 2)}\033[0m, \033[94m{dimension[1][0][21:]}\033[0m is \033[94m{round(dimension[1][1], 2)}\033[0m. ')
-        """.lstrip()
-        return explanation
+        return stuff_chain.run(make_natural_language_documents(most_similar_responses['documents']))

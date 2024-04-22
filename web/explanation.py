@@ -22,28 +22,18 @@ from typings.pipeline import (
     PipelineItemEda4Sum
 )
 from typings.annotation import PartialAnnotation
+from utils.vector_store import MilvusVectorStore
 
 pretrained_embeddings = embedding_functions.OpenAIEmbeddingFunction(
     api_key=ai_constants.OPENAI_API_KEY,
     model_name="text-embedding-ada-002"
 )
 
-vector_store = chromadb.HttpClient(
-    host=ai_constants.VECTOR_STORE_HOST, 
-    port=ai_constants.VECTOR_STORE_PORT
+vector_store = MilvusVectorStore(
+    host=ai_constants.VECTOR_STORE_HOST,
+    port=ai_constants.VECTOR_STORE_PORT,
+    collection_name=ai_constants.VECTOR_STORE_COLLECTION
 )
-
-try:
-    vector_collection = vector_store.create_collection(
-        name=ai_constants.VECTOR_STORE_COLLECTION, 
-        embedding_function=pretrained_embeddings,
-        metadata={
-            "hnsw:space": "cosine"
-        }
-    )
-except:
-    vector_collection = vector_store.get_collection(ai_constants.VECTOR_STORE_COLLECTION)
-
 
 summarization_prompt_template = """Write a concise summary of "{text}". CONCISE SUMMARY:"""
 summarization_prompt = PromptTemplate.from_template(summarization_prompt_template)
@@ -63,7 +53,7 @@ def make_instruction(name, value):
 
 def make_natural_language_documents(docs: list):
     for doc in docs:
-        pipeline = json.loads(doc[0])
+        pipeline = json.loads(doc)
         last_node = pipeline[-1]
         # Extract natural language properties
         total_length, operator, checked_dimension, remaining_operators = (
@@ -212,13 +202,12 @@ def explain(partial_pipeline: Pipeline):
     partial_pipeline_partial_annotation = ';'.join([node_to_encoding(node) for node in partial_annotated_pipeline])
     partial_annotation_embeddings = pretrained_embeddings([partial_pipeline_partial_annotation])
 
-    most_similar_responses = vector_collection.query(
-        query_embeddings=partial_annotation_embeddings,
-        n_results=3,
-        include=["documents", "distances"]
+    most_similar_responses = vector_store.search(
+        partial_annotation_embeddings,
+        k=3
     )
     
-    if not len(most_similar_responses['documents'][0]):
+    if not len(most_similar_responses):
         return "Not found any similar pipelines"
     else:
-        return stuff_chain.run(make_natural_language_documents(most_similar_responses['documents']))
+        return stuff_chain.run(make_natural_language_documents([r['document'] for r in most_similar_responses]))

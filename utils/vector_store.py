@@ -77,8 +77,9 @@ class MilvusVectorStore(VectorStore):
         )
 
     def search(self, embedding: Embedding, k: int = 5, metric_type: str = "COSINE") -> t.List[SearchResult]:
+        data = embedding if isinstance(embedding, list) else [embedding]
         bulk_results = self.collection.search(
-            data=[embedding],
+            data=data,
             anns_field="embedding",
             param={
                 "metric_type": metric_type

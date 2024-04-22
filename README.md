@@ -32,8 +32,15 @@ pip install -r requirements.txt
 c. Then, start the Docker-Compose containers responsible for running pipelines:
 
 1. Run this command whether you want to run pipeline locally:
+
+a. Running pipeline locally by using milvus:
 ```bash
-docker-compose -f docker-compose.local.yaml up -d
+docker-compose -f docker-compose.local.yaml up -d localstack milvus minio etcd
+```
+
+b. Running pipeline locally by using chromadb:
+```bash
+docker-compose -f docker-compose.local.yaml up -d localstack chromadb 
 ```
 
 2. Run this command whether you want to deploy pipeline on server:

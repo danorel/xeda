@@ -1,9 +1,12 @@
 import numpy as np
+from time import time
 
 from .action_manager import ActionManager
 from .pipelines.pipeline_precalculated_sets import PipelineWithPrecalculatedSets
 from .state_encoder import StateEncoder
 
+
+from chromadb import HttpClient
 
 class ModelManager:
     def __init__(self, pipeline: PipelineWithPrecalculatedSets, models):
@@ -24,6 +27,8 @@ class ModelManager:
         previous_set_states=None,
         previous_operation_states=None,
     ):
+        start_time = time()
+
         state_encoder = StateEncoder(
             self.pipeline,
             target_items=target_items,
@@ -103,6 +108,8 @@ class ModelManager:
             set_id = int(datasets[set_action].set_id)
         else:
             set_id = None
+
+        print(f"Inference has finished: {time() - start_time}s")
 
         return {
             "predictedOperation": operation,

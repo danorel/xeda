@@ -1,4 +1,5 @@
 from random import randrange
+from time import time
 
 from constants import DATA_NAME, PIPELINE_MIN_SIZE, PIPELINE_MAX_SIZE
 from typings.pipeline import OperatorRequestData
@@ -49,6 +50,7 @@ def next_pipeline_iter(
         "reward": reward
     }
     """
+    start_time = time()
     if operator == "by_distribution":
         prediction = by_distribution(
             database_pipeline_cache, model_manager, prev_request
@@ -61,6 +63,7 @@ def next_pipeline_iter(
         prediction = by_superset(database_pipeline_cache, model_manager, prev_request)
     else:
         raise Exception("Operator not implemented")
+    print(f"Finished applying operator in {time() - start_time}s")
 
     if not prediction:
         raise ValueError("Prediction failed")
@@ -107,9 +110,11 @@ def sample_pipeline_from_models(models, database_pipeline_cache, info, logger):
     logger.info(f"Generating Pipeline of size {pipeline_size}")
     for i in range(pipeline_size):
         try:
+            start_time = time()
             node, request_data = next_pipeline_iter(
                 database_pipeline_cache, model_manager, request_data
             )
+            print(f"Finished iteration in {time() - start_time}s")
             pipeline.append(node)
         except ValueError:
             logger.info(

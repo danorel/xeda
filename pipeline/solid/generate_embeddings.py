@@ -13,28 +13,19 @@ from constants import (
     VECTOR_STORE_PORT
 )
 from typings.pipeline import Pipeline
+from utils.vector_store import MilvusVectorStore
 
 pretrained_embeddings = embedding_functions.OpenAIEmbeddingFunction(
     api_key=OPENAI_API_KEY,
     model_name="text-embedding-ada-002"
 )
 
-vector_store = chromadb.HttpClient(
+vector_store = MilvusVectorStore(
     host=VECTOR_STORE_HOST,
-    port=VECTOR_STORE_PORT
+    port=VECTOR_STORE_PORT,
+    collection_name=VECTOR_STORE_COLLECTION,
+    timeout=600
 )
-
-try:
-    vector_collection = vector_store.create_collection(
-        name=VECTOR_STORE_COLLECTION,
-        embedding_function=pretrained_embeddings,
-        metadata={
-            "hnsw:space": "cosine"
-        }
-    )
-except:
-    vector_collection = vector_store.get_collection(VECTOR_STORE_COLLECTION)
-
 
 def node_to_encoding(node):
     annotation = node["annotation"]
@@ -65,7 +56,7 @@ def pipeline_to_embedding(pipeline: Pipeline):
         [json.dumps(copy.deepcopy(pipeline)) for _ in range(len(pipeline_splits))],
         [';'.join(pipeline_split) for pipeline_split in pipeline_splits]
     )
-    vector_collection.add(
+    vector_store.insert(
         ids=pipeline_ids,
         documents=pipeline_documents,
         embeddings=pretrained_embeddings(pipeline_sentences),

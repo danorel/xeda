@@ -183,17 +183,27 @@ def results_to_pipelines(search_results: t.List[SearchResult]) -> t.List[Pipelin
     return pipelines
 
 
-def make_pipeline_snapshot(pipeline: Pipeline):
+def make_pipeline_snapshot(pipeline: Pipeline, lookup_recent_steps: int = 3):
     last_node = pipeline[-1]
-    last_operator = last_node.get("operator", "None")
-    last_dimension = last_node.get("dimension", "None")
-    return f"Last operator = {last_operator}; Last dimension = {last_dimension}"
+    last_annotation = last_node.get("annotation", {})
+
+    total_length = last_annotation.get("total_length")
+    remaining_operators = ', '.join([
+        f"{operator_name}: {operator_count}"
+        for operator_name, operator_count in last_annotation.get("remaining_operators", {}).items()
+    ]) or "None"
+
+    recent_nodes = pipeline[-(lookup_recent_steps+1):-1]
+    recent_operators = ', '.join([node.get("annotation", {}).get("current_operator") for node in recent_nodes]) or "None"
+    recent_dimensions = ', '.join([node.get("annotation", {}).get("current_dimension") for node in recent_nodes]) or "None"
+    
+    return f"total length = {total_length}; recent operators = {recent_operators}; recent dimensions = {recent_dimensions}; remaining operators = {remaining_operators}."
 
 
 def make_explanation_details(neighbouring_pipelines: t.List[Pipeline]):
     return [
         {
-            "order": order,
+            "order": f"{order}-th pipeline",
             "snapshot": make_pipeline_snapshot(pipeline)
         }
         for order, pipeline in enumerate(neighbouring_pipelines, 1)

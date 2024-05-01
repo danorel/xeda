@@ -101,7 +101,7 @@ def make_natural_language_explanation(neighbouring_pipelines: t.List[Pipeline], 
     return natural_language_explanation
 
 
-def explain(partial_pipeline: Pipeline, k: int = 3) -> t.Tuple[str, str]:
+def explain(partial_pipeline: Pipeline, k: int = 5) -> t.Tuple[str, str]:
     partial_pipeline_embedding = pipeline_to_embedding(partial_pipeline)
     neighbouring_results = vector_store.search(partial_pipeline_embedding, k)
     if not len(neighbouring_results):

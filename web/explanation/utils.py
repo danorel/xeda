@@ -1,33 +1,21 @@
-import chromadb
 import json
-import typing as t
 import pandas as pd
 import typing as t
-
-from chromadb.utils import embedding_functions
-from langchain.docstore.document import Document
-from langchain.chat_models import ChatOpenAI
-from langchain.chains.combine_documents.stuff import StuffDocumentsChain
-from langchain.chains.llm import LLMChain
-from langchain.prompts import PromptTemplate
+import openai
 
 import constants.ai as ai_constants
 import constants.dataset as dataset_constants
-
 from typings.pipeline import (
     AnnotatedPartialPipelineEda4Sum, 
     AnnotatedPipelineItemEda4Sum,
-    Pipeline, 
+    Pipeline,
     PipelineEda4Sum, 
     PipelineItemEda4Sum
 )
 from typings.annotation import PartialAnnotation
-from utils.vector_store import MilvusVectorStore
+from utils.vector_store import MilvusVectorStore, SearchResult
 
-pretrained_embeddings = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=ai_constants.OPENAI_API_KEY,
-    model_name="text-embedding-ada-002"
-)
+groups_df = pd.read_csv(dataset_constants.GROUPS_CSV_PATH)
 
 vector_store = MilvusVectorStore(
     host=ai_constants.VECTOR_STORE_HOST,
@@ -35,47 +23,16 @@ vector_store = MilvusVectorStore(
     collection_name=ai_constants.VECTOR_STORE_COLLECTION
 )
 
-summarization_prompt_template = """Write a concise summary of "{text}". CONCISE SUMMARY:"""
-summarization_prompt = PromptTemplate.from_template(summarization_prompt_template)
-
-summarization_llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo-16k")
-summarization_chain = LLMChain(llm=summarization_llm, prompt=summarization_prompt)
-
-stuff_chain = StuffDocumentsChain(llm_chain=summarization_chain, document_variable_name="text")
-
-groups_df = pd.read_csv(dataset_constants.GROUPS_CSV_PATH)
-
-#@Guidance utils: make natural language explanations 
-
-def make_instruction(name, value):
-    return f"{name} = {value}" if value else None
+embedding_client = openai.OpenAI(api_key=ai_constants.OPENAI_API_KEY)
 
 
-def make_natural_language_documents(docs: list):
-    for doc in docs:
-        pipeline = json.loads(doc)
-        last_node = pipeline[-1]
-        # Extract natural language properties
-        total_length, operator, checked_dimension, remaining_operators = (
-            last_node['annotation']['total_length'],
-            last_node['operator'],
-            last_node['checkedDimension'],
-            last_node['annotation']['remaining_operators']
-        )
-        # Derive natural language guidance features
-        remaining_operators_count = sum(v for v in remaining_operators.values())
-        remaining_operators_distribution = ', '.join([f"{operator} = {operator_count / remaining_operators_count}%" for operator, operator_count in remaining_operators.items()])
-        # Build natural language query for summarization
-        natural_language_instructions = [instruction for instruction in [
-            make_instruction(name="most_probable_pipeline_length", value=total_length),
-            make_instruction(name="most_probable_operator", value=operator),
-            make_instruction(name="reachable_attribute_by_operator", value=checked_dimension),
-            make_instruction(name="operator_probability_distribution", value=remaining_operators_distribution),
-        ] if instruction is not None]
-        natural_language_document = Document(page_content=", ".join(natural_language_instructions))
-        yield natural_language_document
+def make_embedding(text):
+    response = embedding_client.embeddings.create(
+        input=text,
+        model=ai_constants.OPENAI_EMBEDDINGS_MODEL
+    )
+    return response.data[0].embedding
 
-#@Guidance utils: pipeline annotator
 
 def find_item_set(
     members: pd.DataFrame, pipeline_body_item: PipelineItemEda4Sum
@@ -85,20 +42,24 @@ def find_item_set(
     input_set = set(members[1:-1].split(", "))
     return input_set
 
+
 def _find_delta_uniformity(
     pipeline_item_current: PipelineItemEda4Sum, pipeline_item_next: PipelineItemEda4Sum
 ) -> float:
     return pipeline_item_next["uniformity"] - pipeline_item_current["uniformity"]
+
 
 def _find_delta_novelty(
     pipeline_item_current: PipelineItemEda4Sum, pipeline_item_next: PipelineItemEda4Sum
 ) -> float:
     return pipeline_item_next["novelty"] - pipeline_item_current["novelty"]
 
+
 def _find_delta_diversity(
     pipeline_item_current: PipelineEda4Sum, pipeline_item_next: PipelineEda4Sum
 ) -> float:
     return pipeline_item_next["distance"] - pipeline_item_current["distance"]
+
 
 def _find_utility_weights(
     pipeline_item_current: PipelineEda4Sum, pipeline_item_next: PipelineEda4Sum
@@ -108,6 +69,7 @@ def _find_utility_weights(
         - pipeline_item_current["utilityWeights"][i]
         for i in range(3)
     ]
+
 
 def _find_familiarity_curiosity(seen_galaxies, item_members) -> t.Tuple[float, float]:
     if len(seen_galaxies) == 0:
@@ -120,6 +82,7 @@ def _find_familiarity_curiosity(seen_galaxies, item_members) -> t.Tuple[float, f
         )
         curiosity = separate_members_number / (len(seen_galaxies))
         return [familiarity, curiosity]
+
 
 def annotate_partial_pipeline(
     groups_df: pd.DataFrame, partial_pipeline: PipelineEda4Sum
@@ -185,6 +148,7 @@ def annotate_partial_pipeline(
 
     return annotated_partial_pipeline
 
+
 def node_to_encoding(node):
     annotation = node["annotation"]
     node_encoding = []
@@ -197,17 +161,40 @@ def node_to_encoding(node):
     return ', '.join(node_encoding)
 
 
-def explain(partial_pipeline: Pipeline):
-    partial_annotated_pipeline = annotate_partial_pipeline(groups_df, partial_pipeline)
-    partial_pipeline_partial_annotation = ';'.join([node_to_encoding(node) for node in partial_annotated_pipeline])
-    partial_annotation_embeddings = pretrained_embeddings([partial_pipeline_partial_annotation])
+def pipeline_to_encoding(annotated_pipeline: PipelineEda4Sum):
+    return ';'.join([node_to_encoding(node) for node in annotated_pipeline])
 
-    most_similar_responses = vector_store.search(
-        partial_annotation_embeddings,
-        k=3
-    )
-    
-    if not len(most_similar_responses):
-        return "Not found any similar pipelines"
-    else:
-        return stuff_chain.run(make_natural_language_documents([r['document'] for r in most_similar_responses]))
+
+def pipeline_to_embedding(partial_pipeline: PipelineEda4Sum):
+    partial_annotated_pipeline = annotate_partial_pipeline(groups_df, partial_pipeline)
+    partial_pipeline_encoding = pipeline_to_encoding(partial_annotated_pipeline)
+    partial_pipeline_embedding = make_embedding(partial_pipeline_encoding)
+    return partial_pipeline_embedding
+
+
+def results_to_pipelines(search_results: t.List[SearchResult]) -> t.List[Pipeline]:
+    pipelines = []
+    for search_result in search_results:
+        try:
+            pipeline = json.loads(search_result['document'])
+            pipelines.append(pipeline)
+        except:
+            print(f"Failed to fetch pipeline by id {search_result['id']}")
+    return pipelines
+
+
+def make_pipeline_snapshot(pipeline: Pipeline):
+    last_node = pipeline[-1]
+    last_operator = last_node.get("operator", "None")
+    last_dimension = last_node.get("dimension", "None")
+    return f"Last operator = {last_operator}; Last dimension = {last_dimension}"
+
+
+def make_explanation_details(neighbouring_pipelines: t.List[Pipeline]):
+    return [
+        {
+            "order": order,
+            "snapshot": make_pipeline_snapshot(pipeline)
+        }
+        for order, pipeline in enumerate(neighbouring_pipelines, 1)
+    ]

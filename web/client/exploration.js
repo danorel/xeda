@@ -7,14 +7,15 @@ var app = new Vue({
         dimensions: [],
         distance: null,
         explorationRunning: false,
-        explanationText: null,
+        explanationText: '',
+        explanationDetails: [],
         foundItemsWithRatio: {},
         getPredictedScores: false,
         getscores: true,
         greedySum: false,
         guidanceAlgorithm: "RLSum",
         guidanceMode: "Partially guided",
-        guidanceWeightMode: "custom",
+        guidanceWeightMode: "balanced",
         galaxy_class_scores: null,
         history: [],
         inputSet: null,
@@ -105,7 +106,6 @@ var app = new Vue({
                 return _.intersection(Object.keys(this.orderedDimensions), this.sets.find((x) => x.id === this.selectedSetId).predicate.map((x) => x.dimension.replace(this.dataset + '.', '')))
             }
         },
-
         saveLink: function () {
             return 'data:attachment/json,' + encodeURI(JSON.stringify(this.history))
         },
@@ -118,13 +118,6 @@ var app = new Vue({
         isLoading: function () {
             if (this.loadSteps.length == 0) {
                 return false
-                // } else if (this.inputSet != this.loadSteps[0].inputSet |
-                //     this.selectedSetId != this.loadSteps[0].selectedSetId |
-                //     this.operator != this.loadSteps[0].operator |
-                //     this.checkedDimension != this.loadSteps[0].checkedDimension) {
-                //     this.loadSteps = []
-                //     this.history = []
-                //     return false
             } else {
                 return true
             }
@@ -224,18 +217,12 @@ var app = new Vue({
                     operatorRequestData.dimensions = [this.dataset + "." + this.checkedDimension]
                 }
 
-                // operatorRequestData.target_set = this.targetSet
-                // operatorRequestData.curiosity_weight = this.curiosityWeight
-                // operatorRequestData.target_items = this.targetItems
-                // operatorRequestData.found_items_with_ratio = this.foundItemsWithRatio
                 operatorRequestData.previous_set_states = this.setStates
                 operatorRequestData.previous_operation_states = this.operationStates
                 operatorRequestData.target_set = null
                 operatorRequestData.curiosity_weight = null
                 operatorRequestData.target_items = null
                 operatorRequestData.found_items_with_ratio = null
-                // requestData.previous_set_states = null
-                // requestData.previous_operation_states = null
                 operatorRequestData.previous_operations = this.previousOperations
                 operatorRequestData.dataset_ids = this.sets.map(a => a.id)
                 operatorRequestData.decreasing_gamma = this.guidanceWeightMode == "decreasing"
@@ -296,25 +283,14 @@ var app = new Vue({
                         "partial_pipeline": this.history
                     }
                     axios.put(explanationUrl, explanationRequestData).then(response => {
-                        this.explanationText = response.data.explanation
+                        this.explanationText = response.data.explanation_text
+                        this.explanationDetails = response.data.explanation_details
                         this.loadStep(false)
                         this.loading = false
-                    })
-
-                    // this.foundItemsWithRatio = response.data.foundItemsWithRatio
-                    // if (this.guidanceMode != "Manual") {
-                    //     this.predictedOperation = response.data.predictedOperation
-                    //     this.operator = this.predictedOperation
-                    //     this.predictedDimension = response.data.predictedDimension
-                    //     this.checkedDimension = this.predictedDimension
-                    //     this.predictedSetId = response.data.predictedSetId
-                    //     this.selectedSetId = this.predictedSetId
-                    // } else {
-                    //     this.predictedOperation = null
-                    //     this.predictedDimension = null
-                    //     this.predictedSetId = null
-                    //     this.selectedSetId = null
-                    // }
+                    }).catch(error => {
+                        console.error("Failed to fetch data", error);
+                    });
+                    
                     if (this.guidanceMode != 'Manual') {
                         if (this.guidanceAlgorithm == 'Top1Sum') {
                             prediction = this.predictedScores[0]
@@ -418,6 +394,8 @@ var app = new Vue({
                     this.utilityWeights = response.data.utility_weights
                 this.operator = previous_state.operator
                 this.foundItemsWithRatio = response.data.foundItemsWithRatio
+                this.explanationText = ''
+                this.explanationDetails = []
                 this.guidanceModeChange()
 
                 this.setStates = response.data.setStates
@@ -445,6 +423,8 @@ var app = new Vue({
             this.predictedScores = []
             this.novelty = null
             this.seenPredicates = []
+            this.explanationText = ''
+            this.explanationDetails = []
             this.guidanceAlgorithm = "RLSum"
             this.guidanceMode = "Partially guided"
             this.guidanceWeightMode = "decreasing"
@@ -479,7 +459,6 @@ var app = new Vue({
                 reader.addEventListener('load', (readEvent) => {
                     console.log(readEvent.target.result)
                     this.loadSteps = JSON.parse(readEvent.target.result)
-                    // this.sets = []
                     this.loadStep(true)
                     event.target.value = ""
                 })
@@ -598,8 +577,6 @@ var app = new Vue({
             } else if (this.guidanceWeightMode == "low") {
                 this.utilityWeights = [0.45, 0.45, 0.1]
             } else if (this.guidanceWeightMode == "balanced") {
-                this.utilityWeights = [0.333, 0.333, 0.334]
-            } else if (this.guidanceWeightMode == "custom") {
                 this.utilityWeights = [0.333, 0.333, 0.334]
             }
             this.guidanceAlgorithmChange()

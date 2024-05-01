@@ -36,7 +36,7 @@
                                 <div class="card-body"
                                     v-bind:class="{last_operation:history.indexOf(item) == (history.length -1) }">
                                     <img style="width:45px; height:45px"
-                                        v-bind:src="'/dora-summaries/img/'+item.operator+'.png' ">
+                                        v-bind:src="'/img/'+item.operator+'.png' ">
                                 </div>
                                 <div class="card-footer p-1">
                                     <small class="text-muted">unif: {{Math.round(item.uniformity * 1000) / 1000}}
@@ -129,11 +129,45 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3  row" v-if="explanationText != null">
+                            <div class="mb-3  row" v-if="explanationText">
                                 <div class="col-sm-12">
                                     <label for="explanationText" class="form-label">Explanation text</label>
                                     <div>
                                         <span for="explanationText">{{explanationText}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3  row" v-if="explanationDetails.length > 0">
+                                <div class="col-sm-12">
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                        data-bs-target="#explanation-details-modal">
+                                        Why
+                                    </button>
+                                    <div class="modal fade" id="explanation-details-modal" tabindex="-1"
+                                        aria-labelledby="explanation-details" aria-hidden="true">
+                                        <div class="modal-dialog modal-xl modal-fullscreen-xl-down">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="explanation-details">Explanation details</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <label for="explanationDetails" class="form-label">Topmost similar pipelines</label>
+                                                    <div>
+                                                        <ul>
+                                                            <li v-for="detail in explanationDetails" :key="detail.order">
+                                                                {{ detail.order }}: {{ detail.snapshot }}
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

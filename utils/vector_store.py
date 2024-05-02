@@ -108,8 +108,9 @@ class MilvusVectorStore(VectorStore):
             })
             for r in self.collection.query(expr=f"id == '{id}'", output_fields=["id", "document"], limit=1000)
         ]
-        get_result = search_results[0]
-        return get_result
+        if len(search_results) > 0:
+            return search_results[0]
+        return None
     
     @property
     def ids(self):

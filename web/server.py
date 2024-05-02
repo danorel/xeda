@@ -23,7 +23,7 @@ from pipeline.solid.utils.greedy_summarizer import GreedySummarizer
 from pipeline.solid.utils.model_manager import ModelManager
 from pipeline.solid.utils.pipelines import PipelineWithPrecalculatedSets
 from utils.s3 import pull_keras_model
-from web.explanation import explain 
+from web.explanation.statistical import explain 
 
 
 app_dir = pathlib.Path.cwd()
@@ -243,11 +243,15 @@ async def get_predicted_scores(request_data: OperatorRequestData):
 )
 async def explanation(explanation_request_data: ExplanationRequestData):
     partial_pipeline = explanation_request_data.partial_pipeline
-    explanation = None
+    explanation_text, explanation_details = "", []
     if len(partial_pipeline) >= 3:
-        explanation = explain(partial_pipeline)
+        try:
+            explanation_text, explanation_details = explain(partial_pipeline)
+        except Exception as e:
+            explanation_text = str(e)
     return {
-        "explanation": explanation
+        "explanation_text": explanation_text,
+        "explanation_details": explanation_details
     }
 
 

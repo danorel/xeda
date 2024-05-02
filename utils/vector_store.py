@@ -4,7 +4,7 @@ import chromadb
 import typing as t
 import random
 
-Embedding = t.List
+Embedding = t.List[float]
 
 class SearchResult(t.TypedDict):
     id: str
@@ -38,7 +38,7 @@ class VectorStore(abc.ABC):
 
 
 class MilvusVectorStore(VectorStore):
-    def __init__(self, host: str, port: str, collection_name: str, timeout: int = 600) -> None:
+    def __init__(self, host: str, port: str, collection_name: str, timeout: int = 600, refresh_index: bool = False) -> None:
         super().__init__(host, port, collection_name)
         self.client = pymilvus.MilvusClient(
             uri=f"http://{host}:{port}"
@@ -54,13 +54,16 @@ class MilvusVectorStore(VectorStore):
         ]
         schema = pymilvus.CollectionSchema(fields, description="Document collection based on embeddings similarity")
         self.collection = pymilvus.Collection(collection_name, schema)
+        if refresh_index:
+            self.collection.release()
+            self.collection.drop_index()
         self.collection.create_index(
             field_name="embedding", 
             index_params={
-                "index_type": "AUTOINDEX",
+                "index_type": "IVF_FLAT",
                 "metric_type": "COSINE",
-            }, 
-            timeout=None
+                "params": {"nlist": 1024}
+            }
         )
         self.collection.load()
 
@@ -77,14 +80,13 @@ class MilvusVectorStore(VectorStore):
         )
 
     def search(self, embedding: Embedding, k: int = 5, metric_type: str = "COSINE") -> t.List[SearchResult]:
-        data = embedding if isinstance(embedding, list) else [embedding]
         bulk_results = self.collection.search(
-            data=data,
+            data=[embedding],
             anns_field="embedding",
             param={
                 "metric_type": metric_type
             },
-            limit=k, # Max. number of search results to return
+            limit=k,
             output_fields=["id", "document"]
         )
         embedding_result = bulk_results[0]
@@ -106,8 +108,9 @@ class MilvusVectorStore(VectorStore):
             })
             for r in self.collection.query(expr=f"id == '{id}'", output_fields=["id", "document"], limit=1000)
         ]
-        get_result = search_results[0]
-        return get_result
+        if len(search_results) > 0:
+            return search_results[0]
+        return None
     
     @property
     def ids(self):

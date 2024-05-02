@@ -19,26 +19,20 @@ class VectorStore(abc.ABC):
         self.port = port
         self.collection_name = collection_name
 
+    @abc.abstractmethod
     def insert(self, ids: t.List[str], documents: t.List[t.Dict], embeddings: t.List[Embedding]):
         pass
 
+    @abc.abstractmethod
     def get(self, id: str):
         pass
 
-    def search(self, embedding: Embedding, k: int = 5, metric_type: str = "Cosine") -> t.List[SearchResult]:
-        pass
-
-    @property
-    def ids(self):
-        pass
-
-    @property
-    def documents(self):
-        pass
-
+    @abc.abstractmethod
+    def search(self, embedding: Embedding, k: int = 5, metric_type: str = "COSINE") -> t.List[SearchResult]:
+            pass
 
 class MilvusVectorStore(VectorStore):
-    def __init__(self, host: str, port: str, collection_name: str, timeout: int = 600, refresh_index: bool = False) -> None:
+    def __init__(self, host: str, port: str, collection_name: str, timeout: int = 600, refresh_data: bool = False, refresh_index: bool = False) -> None:
         super().__init__(host, port, collection_name)
         self.client = pymilvus.MilvusClient(
             uri=f"http://{host}:{port}"
@@ -47,6 +41,10 @@ class MilvusVectorStore(VectorStore):
             host=host,
             port=port
         )
+        self.collection = None
+        self._setup_collection(collection_name, refresh_data, refresh_index)
+
+    def _setup_collection(self, collection_name: str, refresh_data: bool, refresh_index: bool):
         fields = [
             pymilvus.FieldSchema(name="id", dtype=pymilvus.DataType.VARCHAR, is_primary=True, max_length=36),
             pymilvus.FieldSchema(name="embedding", dtype=pymilvus.DataType.FLOAT_VECTOR, dim=1536),
@@ -54,6 +52,9 @@ class MilvusVectorStore(VectorStore):
         ]
         schema = pymilvus.CollectionSchema(fields, description="Document collection based on embeddings similarity")
         self.collection = pymilvus.Collection(collection_name, schema)
+        if refresh_data:
+            self.collection.release()
+            self.collection.delete(expr="id > '0'")
         if refresh_index:
             self.collection.release()
             self.collection.drop_index()
@@ -80,53 +81,31 @@ class MilvusVectorStore(VectorStore):
         )
 
     def search(self, embedding: Embedding, k: int = 5, metric_type: str = "COSINE") -> t.List[SearchResult]:
-        bulk_results = self.collection.search(
-            data=[embedding],
-            anns_field="embedding",
-            param={
-                "metric_type": metric_type
-            },
-            limit=k,
+        result = self.collection.search(
+            [embedding], 
+            "embedding", 
+            {"metric_type": metric_type}, 
+            k, 
             output_fields=["id", "document"]
         )
-        embedding_result = bulk_results[0]
-        search_results = [
-            SearchResult({
-                "id": neighbour.get("id"),
-                "score": neighbour.get("distance"),
-                "document": neighbour.get("document")
-            })
-            for neighbour in embedding_result
+        return [
+            SearchResult(id=hit.entity.get("id"), score=hit.distance, document=hit.entity.get("document"))
+            for hit in result[0]
         ]
-        return search_results
     
     def get(self, id: str) -> SearchResult:
-        search_results = [
-            SearchResult({
-                "id": r.get("id"),
-                "document": r.get("document")
-            })
-            for r in self.collection.query(expr=f"id == '{id}'", output_fields=["id", "document"], limit=1000)
-        ]
-        if len(search_results) > 0:
-            return search_results[0]
-        return None
+        results = self.collection.query(f"id == '{id}'", ["id", "document"])
+        return SearchResult(id=results[0].get("id"), document=results[0].get("document")) if results else None
     
     @property
-    def ids(self):
-        result = [
-            r.get("id")
-            for r in self.collection.query(expr="", output_fields=["id"], limit=1000)
-        ]
-        return result
-    
+    def ids(self) -> t.List[str]:
+        results = self.collection.query("", ["id"], limit=10000)
+        return [hit.get("id") for hit in results]
+
     @property
-    def documents(self):
-        result = [
-            r.get("document")
-            for r in self.collection.query(expr="", output_fields=["document"], limit=1000)
-        ]
-        return result 
+    def documents(self) -> t.List[t.Dict]:
+        results = self.collection.query("", ["document"], limit=1000)
+        return [hit.get("document") for hit in results]
 
 
 class ChromaDBVectorStore(VectorStore):
@@ -165,12 +144,12 @@ class ChromaDBVectorStore(VectorStore):
         return search_results
 
     @property
-    def ids(self):
-        return self.collection['ids']
+    def ids(self, limit: int = 10000):
+        return self.collection['ids'][:limit]
     
     @property
-    def documents(self):
-        return self.collection['documents']
+    def documents(self, limit: int = 10000):
+        return self.collection['documents'][:limit]
     
 
 def make_document_sampler(vector_store: VectorStore):

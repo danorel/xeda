@@ -183,28 +183,40 @@ def results_to_pipelines(search_results: t.List[SearchResult]) -> t.List[Pipelin
     return pipelines
 
 
-def make_pipeline_snapshot(pipeline: Pipeline, lookup_recent_steps: int = 3):
-    last_node = pipeline[-1]
-    last_annotation = last_node.get("annotation", {})
+def make_pipeline_snapshot(pipeline: Pipeline, current_step: int, lookup_recent_steps: int = 3):
+    if len(pipeline) <= current_step:
+        target_node = pipeline[-1]
+    else:
+        target_node = pipeline[current_step]
+    target_annotation = target_node.get("annotation", {})
 
-    total_length = last_annotation.get("total_length")
-    remaining_operators = ', '.join([
-        f"{operator_name}: {operator_count}"
-        for operator_name, operator_count in last_annotation.get("remaining_operators", {}).items()
-    ]) or "None"
+    total_length = target_annotation.get("total_length")
+    remaining_operators = target_annotation.get("remaining_operators", {})
+    if len(remaining_operators):
+        remaining_operators = ', '.join([
+            f"{operator_name}: {operator_count}"
+            for operator_name, operator_count in remaining_operators.items()
+        ])
+    else:
+        remaining_operators = "None"
 
     recent_nodes = pipeline[-(lookup_recent_steps+1):-1]
-    recent_operators = ', '.join([node.get("annotation", {}).get("current_operator") for node in recent_nodes]) or "None"
-    recent_dimensions = ', '.join([node.get("annotation", {}).get("current_dimension") for node in recent_nodes]) or "None"
+    recent_annotations = [node.get("annotation") for node in recent_nodes if node.get("annotation") is not None]
+    if len(recent_annotations): 
+        recent_operators = ', '.join([annotation.get("current_operator") for annotation in recent_annotations if annotation.get("current_operator") is not None])
+        recent_dimensions = ', '.join([annotation.get("current_dimension") for annotation in recent_annotations if annotation.get("current_dimension") is not None])
+    else:
+        recent_operators = "None"
+        recent_dimensions = "None"
     
     return f"total length = {total_length}; recent operators = {recent_operators}; recent dimensions = {recent_dimensions}; remaining operators = {remaining_operators}."
 
 
-def make_explanation_details(neighbouring_pipelines: t.List[Pipeline]):
+def make_explanation_details(neighbouring_pipelines: t.List[Pipeline], current_step: int):
     return [
         {
             "order": f"{order}-th pipeline",
-            "snapshot": make_pipeline_snapshot(pipeline)
+            "snapshot": make_pipeline_snapshot(pipeline, current_step)
         }
         for order, pipeline in enumerate(neighbouring_pipelines, 1)
     ]

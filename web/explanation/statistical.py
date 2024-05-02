@@ -109,8 +109,9 @@ def explain(partial_pipeline: Pipeline, k: int = 5) -> t.Tuple[str, str]:
     neighbouring_pipelines = results_to_pipelines(neighbouring_results)
     if not len(neighbouring_pipelines):
         raise ValueError("Not able to provide explanation: lacking similar pipelines")
+    current_step = len(partial_pipeline)
     natural_language_explanation, explanation_details = (
-        make_natural_language_explanation(neighbouring_pipelines, current_step=len(partial_pipeline)),
-        make_explanation_details(neighbouring_pipelines)
+        make_natural_language_explanation(neighbouring_pipelines, current_step),
+        make_explanation_details(neighbouring_pipelines, current_step)
     )
     return natural_language_explanation, explanation_details

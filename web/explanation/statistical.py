@@ -23,6 +23,7 @@ def payload_from_search_result(pipeline: Pipeline, current_step: int):
     for operator_name, operator_counter in current_annotation.get('remaining_operators', {}).items():
         payload[f'remaining_operators_{operator_name}'] = int(operator_counter) 
     payload['familiarity'] = current_annotation.get("familiarity")
+    payload['target_type'] = current_annotation.get("target_type")
 
     return payload
 
@@ -77,15 +78,39 @@ def familiarity(payloads):
     return median_familiarity
 
 
+def scattered_or_concentrated(payloads):
+    type_counts = defaultdict(int)
+    for payload in payloads:
+        type_value = payload.get('target_type')
+        if type_value is None:
+            continue
+        if type_value in type_counts:
+            type_counts[type_value] += 1
+        else:
+            type_counts[type_value] = 1
+
+    if not len(type_counts):
+        return None
+
+    try:
+        most_common_type = max(type_counts, key=type_counts.get)
+        return most_common_type
+    except Exception as e:
+        print(str(e))
+
+    return None
+
+
 def generate_guidance(payloads, step):
     total_length = length(payloads)
     operator = dist_operators(payloads)
     dimension = dimensions(payloads)
     median_familiarity = familiarity(payloads)
     k = number_of_sim_pipelines(payloads)
+    target_type = scattered_or_concentrated(payloads)
     steps = total_length - step
 
-    return f'On average {steps} step/s, you will reach a scattered/concentrated set with an expected final familiarity of {median_familiarity}. ' \
+    return f'On average {steps} step/s, you will reach a {target_type} set with an expected final familiarity of {median_familiarity}. ' \
            f'You are more likely to get there by focusing on the {operator[0][0][20:]} and {operator[1][0][20:]} operators and on {dimension[0][0][21:]} and {dimension[1][0][21:]} dimensions. ' \
            f'You will probably finish with total length of {total_length}. ' \
            f'You get this guidance because: in the {k} similar pipelines the following distribution of operator {operator[0][0][20:]} is {round(operator[0][1], 2)}, {operator[1][0][20:]} is {round(operator[1][1], 2)}, {operator[2][0][20:]} is {round(operator[2][1], 2)}, {operator[3][0][20:]} is {round(operator[3][1], 2)}; ' \

@@ -1,13 +1,14 @@
-import chromadb
 import copy
 import json
+import pandas as pd
 import typing as t
 import uuid
-
-from chromadb.utils import embedding_functions
+import openai
 
 from constants import (
+    GROUPS_CSV_PATH,
     OPENAI_API_KEY,
+    OPENAI_EMBEDDINGS_MODEL,
     VECTOR_STORE_COLLECTION,
     VECTOR_STORE_HOST,
     VECTOR_STORE_PORT
@@ -15,10 +16,7 @@ from constants import (
 from typings.pipeline import Pipeline
 from utils.vector_store import MilvusVectorStore
 
-pretrained_embeddings = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=OPENAI_API_KEY,
-    model_name="text-embedding-ada-002"
-)
+embedding_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 vector_store = MilvusVectorStore(
     host=VECTOR_STORE_HOST,
@@ -27,7 +25,17 @@ vector_store = MilvusVectorStore(
     timeout=600
 )
 
-def node_to_encoding(node):
+groups_df = pd.read_csv(GROUPS_CSV_PATH)
+
+def make_embedding(text):
+    response = embedding_client.embeddings.create(
+        input=text,
+        model=OPENAI_EMBEDDINGS_MODEL
+    )
+    return response.data[0].embedding
+
+
+def node_to_annotation_encoding(node):
     annotation = node["annotation"]
     node_encoding = []
     for k, v in annotation.items():
@@ -39,25 +47,44 @@ def node_to_encoding(node):
     return ', '.join(node_encoding)
 
 
-def pipeline_to_splits(pipeline: Pipeline) -> t.List[Pipeline]:
-    splits = []
-    pipeline_encoding = []
+def annotation_subset_to_embedding(annotation_subset: t.List[str]):
+    annotation_text = ';'.join(annotation_subset)
+    annotation_embedding = make_embedding(annotation_text)
+    return annotation_embedding
+
+
+def pipeline_to_annotation_subsets(pipeline: Pipeline) -> t.List[Pipeline]:
+    annotation_subsets = []
+    partial_annotation = []
     for node in reversed(pipeline):
-        node_encoding = node_to_encoding(node)
-        pipeline_encoding.append(node_encoding)
-        splits.append(copy.deepcopy(pipeline_encoding))
-    return splits
+        encoded_annotation = node_to_annotation_encoding(node)
+        partial_annotation.append(encoded_annotation)
+        annotation_subsets.append(copy.deepcopy(partial_annotation))
+    return annotation_subsets
 
 
-def pipeline_to_embedding(pipeline: Pipeline):
-    pipeline_splits = pipeline_to_splits(pipeline)
-    pipeline_ids, pipeline_documents, pipeline_sentences = (
-        [str(uuid.uuid4()) for _ in range(len(pipeline_splits))],
-        [json.dumps(copy.deepcopy(pipeline)) for _ in range(len(pipeline_splits))],
-        [';'.join(pipeline_split) for pipeline_split in pipeline_splits]
+def pipeline_to_annotation_payloads(pipeline: Pipeline):
+    annotation_subsets = pipeline_to_annotation_subsets(pipeline)
+    annotation_payloads = (
+        [str(uuid.uuid4()) for _ in range(len(annotation_subsets))],
+        [annotation_subset_to_embedding(annotation_subset) for annotation_subset in annotation_subsets]
     )
-    vector_store.insert(
-        ids=pipeline_ids,
-        documents=pipeline_documents,
-        embeddings=pretrained_embeddings(pipeline_sentences),
-    )
+    return annotation_payloads
+
+
+def pipeline_to_encoding(annotated_pipeline: Pipeline):
+    return ';'.join([node_to_annotation_encoding(node) for node in annotated_pipeline])
+
+
+def pipeline_to_embedding(annotated_pipeline: Pipeline):
+    serialized_pipeline = json.dumps(serialized_pipeline)
+    (
+        annotation_ids,
+        annotation_embeddings
+    ) = pipeline_to_annotation_payloads(annotated_pipeline)
+    if len(annotation_ids) > 0:
+        vector_store.insert(
+            ids=annotation_ids,
+            documents=[serialized_pipeline for _ in range(len(annotation_ids))],
+            embeddings=annotation_embeddings,
+        )

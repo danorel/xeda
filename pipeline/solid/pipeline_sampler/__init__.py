@@ -1,3 +1,5 @@
+import typing as t
+
 from random import randrange
 from time import time
 
@@ -30,13 +32,40 @@ def _get_initial_request_data(database_pipeline_cache, info):
     return request_data
 
 
-def next_pipeline_iter(
-    database_pipeline_cache, model_manager, prev_request: OperatorRequestData
+def pipeline_to_request_data(pipeline) -> t.Optional[OperatorRequestData]:
+    if not len(pipeline):
+        return None
+    last_node = pipeline[-1]
+    last_request_data = last_node["requestData"]
+    operator_request_data = OperatorRequestData(**last_request_data)
+    return operator_request_data
+
+
+def next_node_from_request_data(request_data: OperatorRequestData, args, **kwargs):
+    return next_node(request_data, *args, **kwargs)
+
+
+def next_node_from_pipeline(pipeline, *args, **kwargs):
+    request_data = pipeline_to_request_data(pipeline)
+    return next_node(request_data, *args, **kwargs)
+
+
+def next_node(
+    prev_request: OperatorRequestData,
+    database_pipeline_cache,
+    model_manager,
+    operator: t.Optional[str] = None,
+    dimension: t.Optional[str] = None
 ):
-    if len(prev_request.previous_operations):
-        operator = prev_request.previous_operations[-1]
+    if operator is None:
+        if len(prev_request.previous_operations):
+            operator = prev_request.previous_operations[-1]
+        else:
+            operator = "by_facet"
     else:
-        operator = "by_facet"
+        if dimension is None:
+            raise ValueError("Please, pass dimension as well")
+        prev_request.dimensions[0] = dimension
 
     """
     prediction contains:
@@ -111,8 +140,8 @@ def sample_pipeline_from_models(models, database_pipeline_cache, info, logger):
     for i in range(pipeline_size):
         try:
             start_time = time()
-            node, request_data = next_pipeline_iter(
-                database_pipeline_cache, model_manager, request_data
+            node, request_data = next_node_from_request_data(
+                request_data, database_pipeline_cache, model_manager
             )
             print(f"Finished iteration in {time() - start_time}s")
             pipeline.append(node)

@@ -52,11 +52,10 @@ class MilvusVectorStore(VectorStore):
         ]
         schema = pymilvus.CollectionSchema(fields, description="Document collection based on embeddings similarity")
         self.collection = pymilvus.Collection(collection_name, schema)
+        self.collection.load()
         if refresh_data:
-            self.collection.release()
             self.collection.delete(expr="id > '0'")
         if refresh_index:
-            self.collection.release()
             self.collection.drop_index()
         self.collection.create_index(
             field_name="embedding", 
@@ -66,7 +65,6 @@ class MilvusVectorStore(VectorStore):
                 "params": {"nlist": 1024}
             }
         )
-        self.collection.load()
 
     def insert(self, ids: t.List[str], documents: t.List[t.Dict], embeddings: t.List[Embedding]):
         self.collection.insert(

@@ -9,7 +9,7 @@ from langchain.prompts import PromptTemplate
 
 from typings.pipeline import Pipeline
 from utils.vector_store import SearchResult
-from .utils import make_explanation_details, results_to_pipelines, pipeline_to_embedding, vector_store
+from web.explanation.utils import make_explanation_details, results_to_scores, results_to_pipelines, pipeline_to_embedding, vector_store
 
 summarization_prompt_template = """Write a concise summary of "{text}". CONCISE SUMMARY:"""
 summarization_prompt = PromptTemplate.from_template(summarization_prompt_template)
@@ -64,10 +64,12 @@ def explain(partial_pipeline: Pipeline, k: int = 3) -> t.Tuple[str, str]:
     if not len(neighbouring_results):
         raise ValueError("Not found similar documents in vector storage")
     neighbouring_pipelines = results_to_pipelines(neighbouring_results)
+    neighbouring_scores = results_to_scores(neighbouring_results)
     if not len(neighbouring_pipelines):
         raise ValueError("Not able to provide explanation: lacking similar pipelines")
+    current_step = len(partial_pipeline) - 1
     natural_language_explanation, explanation_details = (
-        make_natural_language_explanation(neighbouring_pipelines, current_step=len(partial_pipeline)),
-        make_explanation_details(neighbouring_pipelines)
+        make_natural_language_explanation(neighbouring_pipelines),
+        make_explanation_details(neighbouring_pipelines, neighbouring_scores, current_step)
     )
     return natural_language_explanation, explanation_details

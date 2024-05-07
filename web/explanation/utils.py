@@ -183,11 +183,22 @@ def results_to_pipelines(search_results: t.List[SearchResult]) -> t.List[Pipelin
     return pipelines
 
 
-def make_pipeline_snapshot(pipeline: Pipeline, current_step: int, lookup_recent_steps: int = 3):
-    if len(pipeline) <= current_step:
-        target_node = pipeline[-1]
-    else:
+def results_to_scores(search_results: t.List[SearchResult]) -> t.List[float]:
+    scores = []
+    for search_result in search_results:
+        try:
+            score = float(search_result['score'])
+            scores.append(score)
+        except:
+            print(f"Failed to fetch pipeline by id {search_result['id']}")
+    return scores
+
+
+def make_pipeline_snapshot(pipeline: Pipeline, score: float, current_step: int, lookup_recent_steps: int = 3):
+    if current_step < len(pipeline):
         target_node = pipeline[current_step]
+    else:
+        target_node = pipeline[-1]
     target_annotation = target_node.get("annotation", {})
 
     total_length = target_annotation.get("total_length")
@@ -209,14 +220,14 @@ def make_pipeline_snapshot(pipeline: Pipeline, current_step: int, lookup_recent_
         recent_operators = "None"
         recent_dimensions = "None"
     
-    return f"total length = {total_length}; recent operators = {recent_operators}; recent dimensions = {recent_dimensions}; remaining operators = {remaining_operators}."
+    return f"cosine similarity score = {round(score, 3)}; total length = {total_length}; recent operators = {recent_operators}; recent dimensions = {recent_dimensions}; remaining operators = {remaining_operators}."
 
 
-def make_explanation_details(neighbouring_pipelines: t.List[Pipeline], current_step: int):
+def make_explanation_details(neighbouring_pipelines: t.List[Pipeline], neighbouring_scores: t.List[float], current_step: int):
     return [
         {
             "order": f"{order}-th pipeline",
-            "snapshot": make_pipeline_snapshot(pipeline, current_step)
+            "snapshot": make_pipeline_snapshot(pipeline, score, current_step)
         }
-        for order, pipeline in enumerate(neighbouring_pipelines, 1)
+        for order, (pipeline, score) in enumerate(zip(neighbouring_pipelines, neighbouring_scores), 1)
     ]

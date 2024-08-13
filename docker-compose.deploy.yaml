@@ -1,0 +1,14 @@
+version: '3.3'
+
+services:
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    env_file: .env
+    ports:
+      - "$VECTOR_STORE_PORT:$VECTOR_STORE_PORT"
+    volumes:
+      - "index_data:/chroma/.chroma/index"
+
+volumes:
+  index_data:
+    driver: local
